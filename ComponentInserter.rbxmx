@@ -1,7 +1,7 @@
 <roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
 	<External>null</External>
 	<External>nil</External>
-	<Item class="Folder" referent="RBX6B36061AAB2341AE8457A60A8DFFEE46">
+	<Item class="Folder" referent="RBXAFD50AE635C24C2AA26CF78D73F38569">
 		<Properties>
 			<BinaryString name="AttributesSerialize"></BinaryString>
 			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -10,7 +10,7 @@
 			<int64 name="SourceAssetId">-1</int64>
 			<BinaryString name="Tags"></BinaryString>
 		</Properties>
-		<Item class="Script" referent="RBX703FF1EC3703405C87D647CF65069910">
+		<Item class="Script" referent="RBXC93F7CBCDB324CE1A578BBD4EFEB0D0C">
 			<Properties>
 				<ProtectedString name="Source"><![CDATA[-- This has got to be some of the messiest spaghetti code you've seen
 -- But it's functional, it serves it's purpose, and that's what matters most
@@ -35,7 +35,7 @@ local toolbar = plugin:CreateToolbar("Component Inserter")
 local pluginButton = toolbar:CreateButton(
 	"Insert StateComponents", -- Text below button
 	"Insert StateComponents into your mission from a list, and get some handy explanations for them as well", -- Hovertext
-	if settings().Studio.Theme.Name == "Dark" then "rbxassetid://129832586363670" else "rbxassetid://82013389227413" -- Button icon
+	if settings().Studio.Theme.Name == "Dark" then "rbxassetid://117007439200128" else "rbxassetid://87985218227517" -- Button icon
 )
 
 local info = DockWidgetPluginGuiInfo.new(
@@ -84,16 +84,18 @@ end
 local function GetComponentAttributes(stateComponent: string)
 	local returnTable = {}
 	
-	if apiSuccess then
+	if apiSuccess and attributesMap[stateComponent] then
 		for i, v in pairs(attributesMap[stateComponent]) do
 			returnTable[i] = v[2]
 		end
 	end
 	
-	for i, v in pairs(components[stateComponent].Attributes) do
-		if v[3] then continue end
-		if returnTable[i] then continue end
-		returnTable[i] = attributeValues[v[1]]
+	if components[stateComponent] then
+		for i, v in pairs(components[stateComponent].Attributes) do
+			if v[3] then continue end
+			if returnTable[i] then continue end
+			returnTable[i] = attributeValues[v[1]]
+		end
 	end
 	
 	return returnTable
@@ -256,7 +258,7 @@ end)
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
 		</Item>
-		<Item class="ModuleScript" referent="RBXC4DE26B2F9BF49BF99CF0906AD726963">
+		<Item class="ModuleScript" referent="RBX3E25BAC2ED8C45B7BF2A781A04ED7D7F">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<ProtectedString name="Source"><![CDATA[local template = {
@@ -290,7 +292,7 @@ local components = {
 		HelpText = "Makes specified bot(s) forcefully trigger a conversation with the player when they are in range and a specific condition is met",
 		Attributes = {
 			Active = {"Expression", "When true, specified bot(s) will attempt to trigger a conversation with the player when they are nearby"},
-			BotClientTag = {"string", "The bot tag to affect"},
+			BotClientTag = {"string", "The client-side bot tag to affect"},
 		}
 	},
 	BlackoutScreen = {
@@ -526,6 +528,43 @@ local components = {
 			Seed = {"number", "The seed number used for shuffling"},
 		},
 	},
+	IntelCharacterPortrait = {
+		HelpText = "Adds an image of a specified bot as a node to the intel map that is visible when a specific condition is met",
+		Attributes = {
+			BackgroundColor = {"string", "The color of the background of the portrait, represented using a hex code (no hashtag)"},
+			ClientTag = {"string", "The client-side tag of the bot to create a render of; portrait instead shows the text \"UNKNOWN APPEARANCE\" if no tag is provided"},
+			HiddenColor = {"string", "The color of the background of the portrait when no ClientTag is set, represented using a hex code (no hashtag)"},
+			IntelNodeId = {"string", "The unique identifier for this intel map node"},
+			Visible = {"Expression", "When true, this intel map node will be visible on the intel map"},
+		},
+	},
+	IntelConnection = {
+		HelpText = "Creates a link between two specified nodes on the intel map when a specific condition is met",
+		Attributes = {
+			Link0 = {"string", "The IntelNodeId of the first intel map node to link"},
+			Link1 = {"string", "The IntelNodeId of the second intel map node to link"},
+			Visible = {"Expression", "When true, this connection will be visible on the intel map"},
+		},
+	},
+	IntelPrimaryText = {
+		HelpText = "Adds a text label as a node to the intel map that is visible when a specific condition is met",
+		Attributes = {
+			BackgroundColor = {"string", "The color of the background of the node, represented using a hex code (no hashtag)"},
+			IntelNodeId = {"string", "The unique identifier for this intel map node"},
+			Text = {"CustomString", "The text to display on the node"},
+			Visible = {"Expression", "When true, this intel map node will be visible on the intel map"},
+		},
+	},
+	IntelSubText = {
+		HelpText = "Adds a text label beneath an intel map node to the intel map that is visible when a specific condition is met",
+		Attributes = {
+			IntelNodeId = {"string", "The IntelNodeId of the intel map node to put this IntelSubText under"},
+			LayoutOrder = {"Expression", "Determines display order relative to other IntelSubText nodes; the one with the lowest value will appear on top"},
+			Text = {"CustomString", "The text to display on the node"},
+			Uppercase = {"boolean", "If true, the text will be displayed in uppercase"},
+			Visible = {"Expression", "When true, this intel map node will be visible on the intel map"},
+		},
+	},
 	ItemStateTracker = {
 		HelpText = "Tracks the status(es) of item(s) with a specified tag",
 		Attributes = {
@@ -743,7 +782,7 @@ return components
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
 		</Item>
-		<Item class="ModuleScript" referent="RBXAAD5C3EFC8694CE2A51CED843CA7D577">
+		<Item class="ModuleScript" referent="RBX60A1BA706EE94D0086C128EB59670DAD">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<ProtectedString name="Source"><![CDATA[local attributeValues = {
@@ -767,7 +806,7 @@ return attributeValues
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
 		</Item>
-		<Item class="Frame" referent="RBX8ABD95B2D5EF43C8A692747FC993D1A6">
+		<Item class="Frame" referent="RBX402CE6A2C5524A92A331CD41CB74EB94">
 			<Properties>
 				<token name="Style">0</token>
 				<bool name="Active">false</bool>
@@ -830,7 +869,7 @@ return attributeValues
 				<int64 name="SourceAssetId">-1</int64>
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
-			<Item class="TextLabel" referent="RBX28FD0090A5744234BC4AB018559BDCC2">
+			<Item class="TextLabel" referent="RBXA8F062ED842947D4AA0A100154DC9F5C">
 				<Properties>
 					<Font name="FontFace">
 						<Family><url>rbxasset://fonts/families/SourceSansPro.json</url></Family>
@@ -925,7 +964,7 @@ return attributeValues
 					<BinaryString name="Tags"></BinaryString>
 				</Properties>
 			</Item>
-			<Item class="TextBox" referent="RBX94C072CFB6FC4AE99A745B48CFF8C964">
+			<Item class="TextBox" referent="RBXC7D27B728A4B42CB8D0753F904A9BED1">
 				<Properties>
 					<bool name="ClearTextOnFocus">true</bool>
 					<Font name="FontFace">
@@ -1030,7 +1069,7 @@ return attributeValues
 					<BinaryString name="Tags"></BinaryString>
 				</Properties>
 			</Item>
-			<Item class="UIListLayout" referent="RBX0F9B986469324CA992F4B884621B4446">
+			<Item class="UIListLayout" referent="RBXD413E5CE947B4D3FA8F9333719F9D158">
 				<Properties>
 					<token name="HorizontalFlex">0</token>
 					<token name="ItemLineAlignment">0</token>
@@ -1052,7 +1091,7 @@ return attributeValues
 					<BinaryString name="Tags"></BinaryString>
 				</Properties>
 			</Item>
-			<Item class="ScrollingFrame" referent="RBXB6E22CC6CC6D43BCB97CF95CB250B05D">
+			<Item class="ScrollingFrame" referent="RBXF1047C2DC99042918E6B92383FBA2450">
 				<Properties>
 					<token name="AutomaticCanvasSize">0</token>
 					<Content name="BottomImage"><url>rbxasset://textures/ui/Scroll/scroll-bottom.png</url></Content>
@@ -1141,7 +1180,7 @@ return attributeValues
 					<int64 name="SourceAssetId">-1</int64>
 					<BinaryString name="Tags"></BinaryString>
 				</Properties>
-				<Item class="UIListLayout" referent="RBXECA9842029D346C0B36910E9A743EEB3">
+				<Item class="UIListLayout" referent="RBX9D396422AB2F488694267C87968AE895">
 					<Properties>
 						<token name="HorizontalFlex">0</token>
 						<token name="ItemLineAlignment">0</token>
@@ -1164,7 +1203,7 @@ return attributeValues
 					</Properties>
 				</Item>
 			</Item>
-			<Item class="Frame" referent="RBX5A61D0BED46C4E95A900136C131A8E9C">
+			<Item class="Frame" referent="RBX26FFA461DFDC4308A509FE52F4F58932">
 				<Properties>
 					<token name="Style">0</token>
 					<bool name="Active">false</bool>
@@ -1227,7 +1266,7 @@ return attributeValues
 					<int64 name="SourceAssetId">-1</int64>
 					<BinaryString name="Tags"></BinaryString>
 				</Properties>
-				<Item class="TextButton" referent="RBXA2B5950009D84DEA9E7C66CA803E2DE4">
+				<Item class="TextButton" referent="RBX811EAF91C4AD4BA3B78738170450466F">
 					<Properties>
 						<Font name="FontFace">
 							<Family><url>rbxasset://fonts/families/SourceSansPro.json</url></Family>
@@ -1328,7 +1367,7 @@ return attributeValues
 						<BinaryString name="Tags"></BinaryString>
 					</Properties>
 				</Item>
-				<Item class="TextButton" referent="RBXD9617B15970E496FAD562D8DEE27AA1C">
+				<Item class="TextButton" referent="RBX75F8FC9ACBBB4A3F91AAA041A8511427">
 					<Properties>
 						<Font name="FontFace">
 							<Family><url>rbxasset://fonts/families/SourceSansPro.json</url></Family>
@@ -1430,7 +1469,7 @@ return attributeValues
 					</Properties>
 				</Item>
 			</Item>
-			<Item class="Frame" referent="RBXC97705B75166412B97C56CA4D32B9725">
+			<Item class="Frame" referent="RBX2F966239CA5D4DD5A171767FC07E85CF">
 				<Properties>
 					<token name="Style">0</token>
 					<bool name="Active">false</bool>
@@ -1493,7 +1532,7 @@ return attributeValues
 					<int64 name="SourceAssetId">-1</int64>
 					<BinaryString name="Tags"></BinaryString>
 				</Properties>
-				<Item class="TextLabel" referent="RBX46AA34AF65D047EB8B16D9CC8301C21F">
+				<Item class="TextLabel" referent="RBXDBCCE2B2939C497383B71566F325654A">
 					<Properties>
 						<Font name="FontFace">
 							<Family><url>rbxasset://fonts/families/SourceSansPro.json</url></Family>
@@ -1588,7 +1627,7 @@ return attributeValues
 						<BinaryString name="Tags"></BinaryString>
 					</Properties>
 				</Item>
-				<Item class="TextButton" referent="RBX5DC9458976114B1EADE1ACF8DE846F88">
+				<Item class="TextButton" referent="RBXDFDF8CBCEE654758940ADB3238974349">
 					<Properties>
 						<Font name="FontFace">
 							<Family><url>rbxasset://fonts/families/SourceSansPro.json</url></Family>
@@ -1690,7 +1729,7 @@ return attributeValues
 					</Properties>
 				</Item>
 			</Item>
-			<Item class="ScrollingFrame" referent="RBX7567A131BC574DC792758AE08299D3CF">
+			<Item class="ScrollingFrame" referent="RBX5CC87A6F302344F29951482855182F31">
 				<Properties>
 					<token name="AutomaticCanvasSize">0</token>
 					<Content name="BottomImage"><url>rbxasset://textures/ui/Scroll/scroll-bottom.png</url></Content>
@@ -1779,7 +1818,7 @@ return attributeValues
 					<int64 name="SourceAssetId">-1</int64>
 					<BinaryString name="Tags"></BinaryString>
 				</Properties>
-				<Item class="TextLabel" referent="RBX41766516C80D4956992041D48A6C12CB">
+				<Item class="TextLabel" referent="RBXCB4D0BF85A10419B8DD907AE9FEB1E47">
 					<Properties>
 						<Font name="FontFace">
 							<Family><url>rbxasset://fonts/families/SourceSansPro.json</url></Family>
@@ -1876,7 +1915,7 @@ return attributeValues
 				</Item>
 			</Item>
 		</Item>
-		<Item class="ModuleScript" referent="RBX071C26E98AA2421F9E4C2289B8EE9A8E">
+		<Item class="ModuleScript" referent="RBXB699B647EEA14C8D9F491CB6941804B7">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<ProtectedString name="Source"><![CDATA[--[[
