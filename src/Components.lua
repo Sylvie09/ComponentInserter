@@ -29,7 +29,7 @@ local components = {
 		HelpText = "Makes specified bot(s) forcefully trigger a conversation with the player when they are in range and a specific condition is met",
 		Attributes = {
 			Active = {"Expression", "When true, specified bot(s) will attempt to trigger a conversation with the player when they are nearby"},
-			BotClientTag = {"string", "The bot tag to affect"},
+			BotClientTag = {"string", "The client-side bot tag to affect"},
 		}
 	},
 	BlackoutScreen = {
@@ -263,6 +263,43 @@ local components = {
 			RevealAllCondition = {"Expression", "When true, the position of the correct search will be locked into place, and HiddenWallSafes will have their photos taken away"},
 			RevealCountVariable = {"string", "The name of the variable whose value will be set to the amount of times all players have had a successful check in this shuffle"},
 			Seed = {"number", "The seed number used for shuffling"},
+		},
+	},
+	IntelCharacterPortrait = {
+		HelpText = "Adds an image of a specified bot as a node to the intel map that is visible when a specific condition is met",
+		Attributes = {
+			BackgroundColor = {"string", "The color of the background of the portrait, represented using a hex code (no hashtag)"},
+			ClientTag = {"string", "The client-side tag of the bot to create a render of; portrait instead shows the text \"UNKNOWN APPEARANCE\" if no tag is provided"},
+			HiddenColor = {"string", "The color of the background of the portrait when no ClientTag is set, represented using a hex code (no hashtag)"},
+			IntelNodeId = {"string", "The unique identifier for this intel map node"},
+			Visible = {"Expression", "When true, this intel map node will be visible on the intel map"},
+		},
+	},
+	IntelConnection = {
+		HelpText = "Creates a link between two specified nodes on the intel map when a specific condition is met",
+		Attributes = {
+			Link0 = {"string", "The IntelNodeId of the first intel map node to link"},
+			Link1 = {"string", "The IntelNodeId of the second intel map node to link"},
+			Visible = {"Expression", "When true, this connection will be visible on the intel map"},
+		},
+	},
+	IntelPrimaryText = {
+		HelpText = "Adds a text label as a node to the intel map that is visible when a specific condition is met",
+		Attributes = {
+			BackgroundColor = {"string", "The color of the background of the node, represented using a hex code (no hashtag)"},
+			IntelNodeId = {"string", "The unique identifier for this intel map node"},
+			Text = {"CustomString", "The text to display on the node"},
+			Visible = {"Expression", "When true, this intel map node will be visible on the intel map"},
+		},
+	},
+	IntelSubText = {
+		HelpText = "Adds a text label beneath an intel map node to the intel map that is visible when a specific condition is met",
+		Attributes = {
+			IntelNodeId = {"string", "The IntelNodeId of the intel map node to put this IntelSubText under"},
+			LayoutOrder = {"Expression", "Determines display order relative to other IntelSubText nodes; the one with the lowest value will appear on top"},
+			Text = {"CustomString", "The text to display on the node"},
+			Uppercase = {"boolean", "If true, the text will be displayed in uppercase"},
+			Visible = {"Expression", "When true, this intel map node will be visible on the intel map"},
 		},
 	},
 	ItemStateTracker = {

@@ -21,7 +21,7 @@ local toolbar = plugin:CreateToolbar("Component Inserter")
 local pluginButton = toolbar:CreateButton(
 	"Insert StateComponents", -- Text below button
 	"Insert StateComponents into your mission from a list, and get some handy explanations for them as well", -- Hovertext
-	if settings().Studio.Theme.Name == "Dark" then "rbxassetid://129832586363670" else "rbxassetid://82013389227413" -- Button icon
+	if settings().Studio.Theme.Name == "Dark" then "rbxassetid://117007439200128" else "rbxassetid://87985218227517" -- Button icon
 )
 
 local info = DockWidgetPluginGuiInfo.new(
