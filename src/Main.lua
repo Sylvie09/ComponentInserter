@@ -3,6 +3,7 @@
 
 local selection = game:GetService("Selection")
 local root = script.Parent
+require(root.ConstructGUI)
 local components = require(root.Components)
 local attributeValues = require(root.AttributeValues)
 local mainFrame = root.MainFrame
