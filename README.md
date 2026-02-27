@@ -1,6 +1,8 @@
 # ComponentInserter
 Put the .rbxmx file in your plugins folder
 
+## What it is & how to use it
+
 Allows you to easily insert StateComponents into your InfiltrationEngine custom mission, as well as view brief but useful descriptions for listed StateComponents and their attributes
 
 Inserting StateComponents will not work if there is not a DebugMission folder in the Workspace
@@ -29,4 +31,9 @@ Overall, these features help to create more accessibility and spread information
 
 Also it has light mode support
 
+And I was able to put an ampersand in this README file
+
 Huzzah
+
+## Terms of Use
+- Any modified version of the plugin created must be publicly published with the source code publicly available
