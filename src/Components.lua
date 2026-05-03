@@ -15,10 +15,17 @@ local components = {
 			CustomBehavior = {"CustomBehavior", "The CustomBehavior to apply; for more information on CustomBehavior, consult the documentation"},
 		},
 	},
+	AlertLowerCondition = {
+		HelpText = "Lowers the alert level when a specific condition is met",
+		Attributes = {
+			AlertLevel = {"Expression -> number", "The amount to lower the alert level by (1 is equivalent to one full level, such as Alert -> Normal)"},
+			Condition = {"Expression -> boolean", "When true, this AlertLowerCondition will activate"},
+		},
+	},
 	AlertRaiseCondition = {
 		HelpText = "Raises the alert level when a specific condition is met",
 		Attributes = {
-			Amount = {"number", "The amount that the alert level will raise"},
+			Amount = {"number", "The amount that the alert level will raise (1 is equivalent to one full level, such as Calm -> Normal)"},
 			Condition = {"Expression -> boolean", "When true, this AlertRaiseCondition will activate"},
 			MaxValue = {"number", "The maximum value this AlertRaiseCondition can raise the alert level to"},
 			MinValue = {"number", "The minimum value this AlertRaiseCondition can raise the alert level to"},
@@ -96,10 +103,14 @@ local components = {
 		Attributes = {
 			Active = {"Expression -> boolean", "When true, allows this CombatSpawner to function"},
 			AllowDespawn = {"boolean", "If true, allows combat enemies spawned to despawn (usually, you should keep this at true)"},
+			CurrentWave = {"Expression", "Unknown (if you can figure it out, contact the plugin maker to let them know!)"},
 			CustomCombatData = {"string", "The name of a table in the CustomCombatData table to pull unit stats from"},
+			CustomPantsId = {"string", "The template ID of custom pants to give to the spawned units"},
+			CustomShirtId = {"string", "The template ID of a custom shirt to give to the spawned units"},
 			EnemyType = {"string", "Defines the type (outfit) of enemies spawned, such as Swat, Palisade, Criminal, and HalcyonOperator"},
 			EnemyWeapons = {"string", "The pool of weapons enemies can spawn with, with each weapon name being separated by a bar (|); use duplicate entries to increase the chances of specific weapons being spawned"},
 			["EnemyWeaponsWave(1-9)"] = {"string", "A new attribute can be set for numbers 1 through 9; has the same formatting as EnemyWeapons, and overrides EnemyWeapons for specific waves", true},
+			FallbackCondition = {"Expression -> boolean", "When true, units spawned by this CombatSpawner will retreat to a CombatRetreatPoint prop and despawn"},
 			FlowMap = {"string", "The name of the CombatFlowMap to tie enemies to"},
 			ReinforcementPool = {"string", "The name of the ReinforcementPool StateComponent to use to further define enemy spawns"},
 			SpawnCap = {"Expression -> number", "The maximum number of combat units that can be alive at the same time"},
@@ -107,6 +118,14 @@ local components = {
 			SpawnSquads = {"boolean", "If true, enemies will spawn in squads of up to 3 units at a time"},
 			SpawnTags = {"string", "Determines which combat spawners enemies will spawn at"},
 			TimeBetweenSpawns = {"Expression -> number", "The amount of time between enemy spawns, in seconds"}
+		},
+	},
+	ConditionalBotTag = {
+		HelpText = "Applies a specific tag to bots with a specified bot tag upon a specific condition being met",
+		Attributes = {
+			ApplyTag = {"string", "The tag to add to the bot"},
+			Condition = {"Expression -> boolean", "When true, applies the ApplyTag to bots with the ReferenceTag"},
+			ReferenceTag = {"string", "The tag of the bot to apply the new tag to"},
 		},
 	},
 	ConditionalStateUpdate = {
@@ -119,17 +138,28 @@ local components = {
 		},
 	},
 	ConversationGenericSocialEngineering = {
-		HelpText = "Defines a Social Engineering conversation prompt for specified bot(s)",
+		HelpText = "Defines a conversation prompt for specified bot(s) or a specified dialogue tree",
 		Attributes = {
+			AdvancedProtocolLevel = {"Expression -> number", "The level of Advanced Protocols required to use this prompt"},
+			AwarenessLevel = {"Expression -> number", "The level of Awareness required to use this prompt"},
 			BotServerTag = {"string", "The bot tag to apply the conversation prompt to"},
-			Dialogue = {"CustomString", "A single dialogue string for the player's operator to say"},
+			ClientNotification = {"CustomString", "The notification to display to the client when this prompt is used"},
+			Dialogue = {"CustomString", "A single string for the player's operative to say"},
+			DialogueTree = {"string", "The dialogue tree this prompt belongs to, if any"},
+			DisableReasion = {"Expression -> CustomString", "An expression returning a CustomString key if this prompt should be disabled"},
 			Disguise = {"string", "The disguise the player must wear to use the prompt"},
-			Icon = {"string", "The icon for the prompt to display; can choose from: ChatCancel, ChatGeneric, ChatOpenDoor, ChatGoBack, ChatIntimidate, ChatLocked, and ChatArrow"},
-			IntimidationLevel = {"Expression -> number", "The level of Intimidation required to use this prompt"},
+			HostageOnly = {"boolean", "If true, this prompt will only be available on hostages"},
+			Icon = {"string", "(No longer in use) The icon for the prompt to display; can choose from: ChatCancel, ChatGeneric, ChatOpenDoor, ChatGoBack, ChatIntimidate, ChatLocked, and ChatArrow"},
+			IncrementClientVariable = {"string", "The name of the local variable to increment after using this prompt"},
+			IntimidationLevel = {"number", "The level of Intimidation required to use this prompt"},
 			Label = {"CustomString", "The small dialogue sample to display after the prompt's Text value and perk requirements"},
-			Notification = {"CustomString", "The notification text to display to the player after using the prompt"},
+			NextDialogueTree = {"string", "The dialogue tree that will open after this prompt is used, if any"},
+			Notification = {"CustomString", "The notification text to display to players after using the prompt"},
 			NotificationDelay = {"number", "The time delay, in seconds, between using the prompt and receiving the notitification, if one is set"},
+			Priority = {"Expression -> string", "Unknown (if you can figure it out, contact the plugin maker to let them know!)"},
+			ResolveTime = {"number", "The amount of time it takes to use this prompt"},
 			SetVariable = {"string", "The name of the variable to increment after using this prompt"},
+			SetVariableOnce = {"string", "The name of a variable to increment after using this prompt for the first time"},
 			SocialEngineeringLevel = {"Expression -> number", "The level of Social Engineering required to use the prompt"},
 			Text = {"CustomString", "The text to display on the prompt"},
 			Visible = {"Expression", "When false, this prompt will be invisible and uninteractable to players"},
@@ -144,6 +174,37 @@ local components = {
 			DisableReason = {"Expression -> CustomString", "An expression returning a CustomString key if the prompt should be disabled"},
 			SocialEngineeringLevel = {"Expression", "The level of Social Engineering required to use the prompt"},
 		}
+	},
+	CoverFillSpawner = {
+		HelpText = "Spawns enemies in combat based on various specified parameters to fill specific cover spots",
+		Attributes = {
+			Active = {"Expression -> boolean", "When true, allows this CombatSpawner to function"},
+			ActiveVariable = {"string", "The name of the variable whose value will be set to the number of currently alive enemies spawned from this CoverFillSpawner"},
+			CoverSearchLimit = {"number", "The maximum number of cells away a valid cover spot can be from the spawn point of an enemy"},
+			CoverTags = {"string", "The specific CoverTag of cover spots for enemies spawned from this spawner to use"},
+			CurrentWave = {"Expression", "Unknown (if you can figure it out, contact the plugin maker to let them know!)"},
+			CustomCombatData = {"string", "The name of a table in the CustomCombatData table to pull unit stats from"},
+			CustomPantsId = {"string", "The template ID of custom pants to give to the spawned units"},
+			CustomShirtId = {"string", "The template ID of a custom shirt to give to the spawned units"},
+			EnemyType = {"string", "Defines the type (outfit) of enemies spawned, such as Swat, Palisade, Criminal, and HalcyonOperator"},
+			EnemyWeapons = {"string", "The pool of weapons enemies can spawn with, with each weapon name being separated by a bar (|); use duplicate entries to increase the chances of specific weapons being spawned"},
+			["EnemyWeaponsWave(1-9)"] = {"string", "A new attribute can be set for numbers 1 through 9; has the same formatting as EnemyWeapons, and overrides EnemyWeapons for specific waves", true},
+			FillFrequency = {"number", "The amount of time between unit spawns, in seconds"},
+			FocusPoint = {"Vector3", "Unknown (if you can figure it out, contact the plugin maker to let them know!)"},
+			ReinforcementPool = {"string", "The name of the ReinforcementPool StateComponent to use to further define enemy spawns"},
+			ServerTag = {"string", "The tag to apply to units spawned by this CoverFillSpawner"},
+			ShuffleCover = {"boolean", "Unknown (if you can figure it out, contact the plugin maker to let them know!)"},
+			SpawnCap = {"Expression -> number", "The maximum number of combat units that can be alive at the same time"},
+			SpawnsBlockedVariable = {"string", "The name of the variable that will be set to true if all possible spawn locations for enemies are unable to spawn units"},
+			SpawnTags = {"string", "Determines which combat spawners enemies will spawn at"},
+		},
+	},
+	CredentialUnlock = {
+		HelpText = "Unlocks a specified keycard credential when a specific condition is met",
+		Attributes = {
+			Condition = {"Expression -> boolean", "When true, the keycard credential set in Credential will be unlocked"},
+			Credential = {"string", "The keycard credential to unlock"},
+		},
 	},
 	CustomBehaviorCondition = {
 		HelpText = "Applies a CustomBehavior to bots with a specified tag when a specific condition is met",
@@ -162,7 +223,7 @@ local components = {
 			DeployCost = {"number", "The base amount of network resources that this hack takes to deploy"},
 			DeployedOnceVariable = {"string", "The name of the variable that will be incremented once this hack is first deployed, and will not change if the hack is deallocated or redeployed"},
 			DeployedVariable = {"string", "The name of the variable that will be incremented when the hack is deployed"},
-			DeployTime = {"number", "The amount of ticks this hack takes to deploy; ticks go by at a rate of four per second in Stealth and one per second in Loud"},
+			DeployTime = {"Expression -> number", "The amount of ticks this hack takes to deploy; ticks go by at a rate of four per second in Stealth and one per second in Loud"},
 			DescriptionKey = {"CustomString", "The text to display when the hack is hovered over in the hacking UI, formatted as \"TITLE - Short action description\""},
 			Difficulty = {"Expression -> number", "The level of Advanced Protocols needed to deploy the hack"},
 			DisableReason = {"Expression -> CustomString", "An expression returning a CustomString key if the hack should be disabled; the hack will be visible but uninteractable"},
@@ -178,24 +239,6 @@ local components = {
 			SubtitleKey = {"CustomString", "The text to be displayed under the title text of the interacttion prompt of the hack, if the hack is a primary hack"},
 			Suspicion = {"number", "The amount of hacking risk to add for every tick the hack takes to deploy"},
 			Visible = {"Expression -> boolean", "When false, the hack will be invisible and uninteractable for all players"},
-		},
-	},
-	CoverFillSpawner = {
-		HelpText = "Spawns enemies in combat based on various specified parameters to fill specific cover spots",
-		Attributes = {
-			Active = {"Expression -> boolean", "When true, allows this CombatSpawner to function"},
-			ActiveVariable = {"string", "The name of the variable whose value will be set to the number of currently alive enemies spawned from this CoverFillSpawner"},
-			CoverSearchLimit = {"number", "The maximum number of cells away a valid cover spot can be from the spawn point of an enemy"},
-			CoverTags = {"string", "The specific CoverTag of cover spots for enemies spawned from this spawner to use"},
-			CustomCombatData = {"string", "The name of a table in the CustomCombatData table to pull unit stats from"},
-			EnemyType = {"string", "Defines the type (outfit) of enemies spawned, such as Swat, Palisade, Criminal, and HalcyonOperator"},
-			EnemyWeapons = {"string", "The pool of weapons enemies can spawn with, with each weapon name being separated by a bar (|); use duplicate entries to increase the chances of specific weapons being spawned"},
-			["EnemyWeaponsWave(1-9)"] = {"string", "A new attribute can be set for numbers 1 through 9; has the same formatting as EnemyWeapons, and overrides EnemyWeapons for specific waves", true},
-			FillFrequency = {"number", "The amount of time between unit spawns, in seconds"},
-			ReinforcementPool = {"string", "The name of the ReinforcementPool StateComponent to use to further define enemy spawns"},
-			SpawnCap = {"Expression -> number", "The maximum number of combat units that can be alive at the same time"},
-			SpawnsBlockedVariable = {"string", "The name of the variable that will be set to true if all possible spawn locations for enemies are unable to spawn units"},
-			SpawnTags = {"string", "Determines which combat spawners enemies will spawn at"},
 		},
 	},
 	DelayedStateUpdate = {
@@ -287,7 +330,7 @@ local components = {
 	IntelPrimaryText = {
 		HelpText = "Adds a text label as a node to the intel map that is visible when a specific condition is met",
 		Attributes = {
-			BackgroundColor = {"string", "The color of the background of the node, represented using a hex code (no hashtag)"},
+			BackgroundColor = {"Color", "The color of the background of the node; can be represented using a hex code (no hashtag) or a Color3"},
 			IntelNodeId = {"string", "The unique identifier for this intel map node"},
 			Text = {"CustomString", "The text to display on the node"},
 			Visible = {"Expression -> boolean", "When true, this intel map node will be visible on the intel map"},
@@ -334,12 +377,13 @@ local components = {
 		},
 	},
 	LocalChat = {
-		HelpText = "Starts a specified dialogue when a specific condition is met",
+		HelpText = "Starts a specified dialogue for the client when a specific condition is met",
 		Attributes = {
 			Active = {"Expression -> boolean", "When true, the specified dialogue will play"},
 			CombatOnly = {"boolean", "If true, the dialogue will only trigger during Loud"},
 			DelayStart = {"number", "The amount of time that it takes, in seconds, for the dialogue to be triggered after the Active condition is met"},
 			Dialogue = {"string", "The name of the dialogue table to be triggered"},
+			Replicate = {"boolean", "If true, this dialogue will display to all players, using the codename of the player who triggered it as the operative speaker name"},
 			StealthOnly = {"boolean", "If true, the dialogue will only trigger during Stealth"},
 			TriggerOnce = {"boolean", "If true, the dialogue will only be triggered once"},
 		},
@@ -455,6 +499,8 @@ local components = {
 		Attributes = {
 			BotServerTag = {"string", "The bot tag targeted by the SearchPatternCondition"},
 			Condition = {"Expression -> boolean", "When true, specified bots will begin roaming their SearchArea nodes"},
+			Pace = {"number", "The speed at which searching bots will move; 1 is normal, 2 is super fast walking, 3 is running, 4 is fast walking, and anything else is a complete stop"},
+			UseWeapon = {"boolean", "If true, searching bots will hold their weapon out while walking and become immune to intimidation"},
 		},
 	},
 	SniperSpawner = {
@@ -464,6 +510,22 @@ local components = {
 			InitialSpawns = {"number", "The initial number of snipers to spawn as soon as they become active"},
 			Nodes = {"string", "The name of the folder of nodes to spawn snipers on"},
 			RespawnRate = {"number", "The time it takes, in seconds, for snipers to respawn after being killed"},
+		},
+	},
+	StandardRadioAlertReduction = {
+		HelpText = "Adds alert reduction prompts to the RadioCall dialogue tree, the dialogue tree accessed by using a radio item",
+		Attributes = {
+			AlertReductionDifficulty = {"Expression -> number", "The level of Social Engineering required to reduce the alert level by 1"},
+			AlertReductionDisabled = {"Expression -> bool", "When true, reducing the alert level using the radio is disabled"},
+			AlertResetDifficulty = {"Expression -> number", "The level of Social Engineering required to completely reset the alert level to Calm (overrides alert reduction prompt if the alert reset requirement is met)"},
+		},
+	},
+	StateLock = {
+		HelpText = "Upon a specified expression's value being set to a truthy value for the first time, sets another variable's value to that value",
+		Attributes = {
+			SetInternal = {"string", "The internal variable to set to Watch's value upon Watch being set to a truthy value"},
+			SetVariable = {"string", "The global variable to set to Watch's value upon Watch being set to a truthy value"},
+			Watch = {"Expression", "The expression to watch for change and copy the value of"},
 		},
 	},
 	StateScript = {

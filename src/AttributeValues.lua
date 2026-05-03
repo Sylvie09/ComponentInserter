@@ -10,6 +10,8 @@ local attributeValues = {
 	["Expression -> CustomString"] = "",
 	CustomBehavior = "",
 	StateScript = "",
+	Color = Color3.new(0, 0, 0),
+	Vector3 = Vector3.new(0, 0, 0),
 }
 
 return attributeValues

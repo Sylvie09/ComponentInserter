@@ -1,6 +1,3 @@
--- This has got to be some of the messiest spaghetti code you've seen
--- But it's functional, it serves it's purpose, and that's what matters most
-
 local selection = game:GetService("Selection")
 local root = script.Parent
 require(root.ConstructGUI)
