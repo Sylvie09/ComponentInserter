@@ -19,7 +19,7 @@ local toolbar = plugin:CreateToolbar("Component Inserter")
 local pluginButton = toolbar:CreateButton(
 	"Insert StateComponents", -- Text below button
 	"Insert StateComponents into your mission from a list, and get some handy explanations for them as well", -- Hovertext
-	if settings().Studio.Theme.Name == "Dark" then "rbxassetid://117007439200128" else "rbxassetid://87985218227517" -- Button icon
+	if settings().Studio.Theme.Name == "Dark" then "rbxassetid://99754481925613" else "rbxassetid://135383589626064" -- Button icon
 )
 
 local info = DockWidgetPluginGuiInfo.new(
@@ -49,7 +49,7 @@ local function InvertTheme()
 	for i, v in ipairs(mainFrame:GetDescendants()) do
 		if v:IsA("GuiObject") then
 			v.BackgroundColor3 = InvertColor(v.BackgroundColor3)
-			
+
 			if v:IsA("TextLabel") or v:IsA("TextButton") or v:IsA("TextBox") then
 				v.TextColor3 = InvertColor(v.TextColor3)
 				v.TextStrokeColor3 = InvertColor(v.TextStrokeColor3)
@@ -67,13 +67,13 @@ end
 
 local function GetComponentAttributes(stateComponent: string)
 	local returnTable = {}
-	
+
 	if apiSuccess and attributesMap[stateComponent] then
 		for i, v in pairs(attributesMap[stateComponent]) do
 			returnTable[i] = v[2]
 		end
 	end
-	
+
 	if components[stateComponent] then
 		for i, v in pairs(components[stateComponent].Attributes) do
 			if v[3] then continue end
@@ -81,41 +81,53 @@ local function GetComponentAttributes(stateComponent: string)
 			returnTable[i] = attributeValues[v[1]]
 		end
 	end
-	
+
 	return returnTable
 end
 
 local function InsertStateComponent(stateComponent: string)
 	if not components[stateComponent] and not attributesMap[stateComponent] then
-		warn("Attempted to insert StateComponent with invalid name")
+		warn("ComponentInserter: Attempted to insert StateComponent with invalid name; if you see this warning, please contact Sylvie09")
 		return
 	end
-	
+
 	local debugMission = workspace:FindFirstChild("DebugMission")
-	
+
 	if not debugMission then
-		warn("No DebugMission folder found")
+		warn("ComponentInserter: Could not insert, no DebugMission folder found")
 		return
 	end
-	
+
 	local stateComponentsFolder = debugMission:FindFirstChild("StateComponents")
-	
+
 	if not stateComponentsFolder then
 		stateComponentsFolder = Instance.new("Folder")
 		stateComponentsFolder.Name = "StateComponents"
 		stateComponentsFolder.Parent = debugMission
-		print("Couldn't find StateComponents folder in DebugMission and created a new one")
+		print("ComponentInserter: Couldn't find StateComponents folder in DebugMission and created a new one")
 	end
-	
+
 	local newComponent = Instance.new("BoolValue")
 	newComponent.Name = stateComponent
-	newComponent.Parent = stateComponentsFolder
 	newComponent:SetAttribute("Type", stateComponent)
 	
+	local newParent = stateComponentsFolder
+	local currentSelection = selection:Get()
+	
+	if #currentSelection == 1 and currentSelection[1]:IsDescendantOf(stateComponentsFolder) then
+		if currentSelection[1]:IsA("Folder") then
+			newParent = currentSelection[1]
+		else
+			newParent = currentSelection[1].Parent
+		end
+	end
+	
+	newComponent.Parent = newParent
+
 	for attribute, value in pairs(GetComponentAttributes(stateComponent)) do
 		newComponent:SetAttribute(attribute, value)
 	end
-	
+
 	selection:Set({newComponent})
 end
 
@@ -148,7 +160,7 @@ function LoadComponentHelp(stateComponent: string)
 				return false
 			end
 		end
-		
+
 		return val1:len() < val2:len()
 	end)
 
@@ -157,7 +169,7 @@ function LoadComponentHelp(stateComponent: string)
 	end
 
 	helpScroll.TextLabel.Text = finalText
-	
+
 	helpScroll.CanvasPosition = Vector2.zero
 
 	ShowMain(false)
@@ -175,11 +187,11 @@ local function PopulateComponentList()
 		newComponentFrame.Visible = true
 
 		newComponentFrame.Parent = componentList
-		
+
 		newComponentFrame.ComponentName.Activated:Connect(function()
 			InsertStateComponent(i)
 		end)
-		
+
 		newComponentFrame.HelpButton.Activated:Connect(function()
 			LoadComponentHelp(i)
 		end)
@@ -198,14 +210,14 @@ PopulateComponentList()
 
 searchBar.Changed:Connect(function(property: string)
 	if property ~= "Text" then return end
-	
+
 	componentList.CanvasPosition = Vector2.zero
-	
+
 	for i, v in ipairs(componentList:GetChildren()) do
 		if not v:IsA("Frame") then continue end
-		
+
 		if searchBar.Text == "" then v.Visible = true continue end
-		
+
 		if v.Name:lower():find(searchBar.Text:lower()) then
 			v.Visible = true
 		else

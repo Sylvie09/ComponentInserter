@@ -2,7 +2,7 @@ local template = {
 	Component = {
 		HelpText = "Text",
 		Attributes = {
-			
+
 		},
 	},
 }
@@ -11,7 +11,7 @@ local components = {
 	AlarmedBehaviorOverride = {
 		HelpText = "Overrides the behavior of specified bots with a given CustomBehavior when they enter combat",
 		Attributes = {
-			BotServerTag = {"string", "The bot tag that the CustomBehavior will apply to"},
+			BotServerTag = {"string", "The server-side bot tag that the CustomBehavior will apply to"},
 			CustomBehavior = {"CustomBehavior", "The CustomBehavior to apply; for more information on CustomBehavior, consult the documentation"},
 		},
 	},
@@ -56,32 +56,35 @@ local components = {
 			ServerEnabled = {"Expression -> boolean", "When false, no player will be able to see or interact with the trigger"},
 			SubtitleKey = {"CustomString", "The text to display under the title text of the trigger"},
 			TitleKey = {"CustomString", "The large text to display on the trigger"},
-			TriggerLocalNotification = {"CustomString", "The notification to display to the player who interacts with the trigger"},
 			TriggerNotification = {"CustomString", "The notification to display to all players when the trigger is interaction with"},
 			TriggerVariable = {"string", "The name of the variable to increment when the trigger is interacted with"},
 		},
 	},
 	BotAltTrigger = {
-		HelpText = "Adds an alternate (G) interaction trigger to specified bot(s)",
+		HelpText = "Adds an alternate (G) interaction trigger to specified conscious bot(s)",
 		Attributes = {
 			AllowHostages = {"boolean", "Applies this trigger to specified bots who are hostages"},
 			AllowPatroling = {"boolean", "Applies this trigger to specified bots who are not pacified (yes there is a typo in the attribute name)"},
 			BotClientTag = {"string", "The client-side bot tag to apply the trigger to"},
 			BotServerTag = {"string", "The server-side bot tag to apply the trigger to"},
+			ClientEnabled = {"Expression -> boolean", "When false, the client will not be able to interact with the trigger even if it is visible"},
 			ClientVisible = {"Expression -> boolean", "When false, the local player will not be able to see or interact with the trigger"},
+			DisabledSubtitleKey = {"CustomString", "The text to display under the title text of the trigger when the trigger is disabled"},
+			DisabledTitleKey = {"CustomString", "The large text to display on the trigger when the trigger is disabled"},
 			HoldTime = {"number", "The amount of time the trigger must be held, in seconds, to complete"},
 			ServerEnabled = {"Expression -> boolean", "When false, no player will be able to see or interact with the trigger"},
 			SubtitleKey = {"CustomString", "The text to display under the title text of the trigger"},
 			TitleKey = {"CustomString", "The large text to display on the trigger"},
+			TriggerClientVariable = {"string", "The name of the client-side variable to increment when the trigger is interacted with"},
 			TriggerLocalNotification = {"CustomString", "The notification to display to the player who interacts with the trigger"},
 			TriggerNotification = {"CustomString", "The notification to display to all players when the trigger is interaction with"},
-			TriggerVariable = {"string", "The name of the variable to increment when the trigger is interacted with"},
+			TriggerVariable = {"string", "The name of the global variable to increment when the trigger is interacted with"},
 		},
 	},
 	BotItemSpawn = {
 		HelpText = "Spawns an item into the inventory of specified bot(s) when a specific condition is met",
 		Attributes = {
-			BotServerTag = {"string", "The bot tag to affect"},
+			BotServerTag = {"string", "The server-side bot tag to affect"},
 			Condition = {"Expression -> boolean", "When true, activates the BotItemSpawn"},
 			Item = {"string", "The item to give"},
 			ItemTag = {"string", "The item tag to apply to the given item"},
@@ -90,9 +93,10 @@ local components = {
 	BotStateTracker = {
 		HelpText = "Tracks the status(es) of specified bot(s)",
 		Attributes = {
-			BotServerTag = {"string", "The bot tag for this trigger to track"},
+			BotServerTag = {"string", "The server-side bot tag for this trigger to track"},
+			ClientKillCountVariable = {"string", "The name of the client-side variable whose value will be set to the amount of bots killed by the client"},
 			DeathCountVariable = {"string", "The name of the variable whose value will be set to the amount of dead bots with the specified tag"},
-			FleeCountVariable = {"string", "The name of the variable whose value will be set to the amount of fleeing bots with the specified tag"},
+			FleeCountVariable = {"string", "The name of the variable whose value will be set to the amount of bots with the specified tag who have successfully fled and escaped"},
 			HostageCountVariable = {"string", "The name of the variable whose value will be set to the amount of bots held hostage with the specified tag"},
 			IncapacitationCountVariable = {"string", "The name of the variable whose value will be set to the amount of dead, hostage, and unconscious bots with the specified tag"},
 			TotalCountVariable = {"string", "The name of the variable whose value will be set to the total amount of bots with the specified tag"},
@@ -103,16 +107,16 @@ local components = {
 		Attributes = {
 			Active = {"Expression -> boolean", "When true, allows this CombatSpawner to function"},
 			AllowDespawn = {"boolean", "If true, allows combat enemies spawned to despawn (usually, you should keep this at true)"},
-			CurrentWave = {"Expression", "Unknown (if you can figure it out, contact the plugin maker to let them know!)"},
-			CustomCombatData = {"string", "The name of a table in the CustomCombatData table to pull unit stats from"},
+			CurrentWave = {"Expression", "Unknown (if you can figure it out, contact the plugin maker to let them know!)", true},
+			CustomCombatData = {"string", "The name of a table in the CustomCombatData table to pull unit information from"},
 			CustomPantsId = {"string", "The template ID of custom pants to give to the spawned units"},
 			CustomShirtId = {"string", "The template ID of a custom shirt to give to the spawned units"},
-			EnemyType = {"string", "Defines the type (outfit) of enemies spawned, such as Swat, Palisade, Criminal, and HalcyonOperator"},
+			EnemyType = {"string", "Defines the type (outfit and base stats) of enemies spawned, such as Swat, Palisade, Criminal, and HalcyonOperator"},
 			EnemyWeapons = {"string", "The pool of weapons enemies can spawn with, with each weapon name being separated by a bar (|); use duplicate entries to increase the chances of specific weapons being spawned"},
 			["EnemyWeaponsWave(1-9)"] = {"string", "A new attribute can be set for numbers 1 through 9; has the same formatting as EnemyWeapons, and overrides EnemyWeapons for specific waves", true},
 			FallbackCondition = {"Expression -> boolean", "When true, units spawned by this CombatSpawner will retreat to a CombatRetreatPoint prop and despawn"},
 			FlowMap = {"string", "The name of the CombatFlowMap to tie enemies to"},
-			ReinforcementPool = {"string", "The name of the ReinforcementPool StateComponent to use to further define enemy spawns"},
+			ReinforcementPool = {"string", "The name of the ReinforcementPool StateComponent to use to pull enemy spawns from"},
 			SpawnCap = {"Expression -> number", "The maximum number of combat units that can be alive at the same time"},
 			SpawnsBlockedVariable = {"string", "The name of the variable that will be set to true if all possible spawn locations for enemies are unable to spawn units"},
 			SpawnSquads = {"boolean", "If true, enemies will spawn in squads of up to 3 units at a time"},
@@ -142,11 +146,11 @@ local components = {
 		Attributes = {
 			AdvancedProtocolLevel = {"Expression -> number", "The level of Advanced Protocols required to use this prompt"},
 			AwarenessLevel = {"Expression -> number", "The level of Awareness required to use this prompt"},
-			BotServerTag = {"string", "The bot tag to apply the conversation prompt to"},
+			BotServerTag = {"string", "The server-side bot tag to apply the conversation prompt to"},
 			ClientNotification = {"CustomString", "The notification to display to the client when this prompt is used"},
-			Dialogue = {"CustomString", "A single string for the player's operative to say"},
+			Dialogue = {"CustomString", "A single string for the player's operative to say when this prompt is used"},
 			DialogueTree = {"string", "The dialogue tree this prompt belongs to, if any"},
-			DisableReasion = {"Expression -> CustomString", "An expression returning a CustomString key if this prompt should be disabled"},
+			DisableReason = {"Expression -> CustomString", "An expression returning a CustomString key if this prompt should be disabled"},
 			Disguise = {"string", "The disguise the player must wear to use the prompt"},
 			HostageOnly = {"boolean", "If true, this prompt will only be available on hostages"},
 			Icon = {"string", "(No longer in use) The icon for the prompt to display; can choose from: ChatCancel, ChatGeneric, ChatOpenDoor, ChatGoBack, ChatIntimidate, ChatLocked, and ChatArrow"},
@@ -156,8 +160,8 @@ local components = {
 			NextDialogueTree = {"string", "The dialogue tree that will open after this prompt is used, if any"},
 			Notification = {"CustomString", "The notification text to display to players after using the prompt"},
 			NotificationDelay = {"number", "The time delay, in seconds, between using the prompt and receiving the notitification, if one is set"},
-			Priority = {"Expression -> string", "Unknown (if you can figure it out, contact the plugin maker to let them know!)"},
-			ResolveTime = {"number", "The amount of time it takes to use this prompt"},
+			Priority = {"Expression -> string", "Unknown (if you can figure it out, contact the plugin maker to let them know!)", true},
+			ResolveTime = {"number", "The amount of time in seconds it takes to use this prompt"},
 			SetVariable = {"string", "The name of the variable to increment after using this prompt"},
 			SetVariableOnce = {"string", "The name of a variable to increment after using this prompt for the first time"},
 			SocialEngineeringLevel = {"Expression -> number", "The level of Social Engineering required to use the prompt"},
@@ -168,9 +172,9 @@ local components = {
 	ConversationResponseCustomBehavior = {
 		HelpText = "Defines a Social Engineering conversation prompt for specified bot(s) that apply a CustomBehavior to the bot(s)",
 		Attributes = {
-			BotServerTag = {"string", "The bot tag to apply the conversation prompt to"},
+			BotServerTag = {"string", "The server-side bot tag to apply the conversation prompt to"},
 			CustomBehavior = {"CustomBehavior", "The CustomBehavior to apply; for more information on CustomBehavior, consult the documentation"},
-			Dialogue = {"CustomString", "A single dialogue string for the player's operator to say"},
+			Dialogue = {"CustomString", "A single dialogue string for the player's operator to say after the conversation prompt is used"},
 			DisableReason = {"Expression -> CustomString", "An expression returning a CustomString key if the prompt should be disabled"},
 			SocialEngineeringLevel = {"Expression", "The level of Social Engineering required to use the prompt"},
 		}
@@ -182,18 +186,18 @@ local components = {
 			ActiveVariable = {"string", "The name of the variable whose value will be set to the number of currently alive enemies spawned from this CoverFillSpawner"},
 			CoverSearchLimit = {"number", "The maximum number of cells away a valid cover spot can be from the spawn point of an enemy"},
 			CoverTags = {"string", "The specific CoverTag of cover spots for enemies spawned from this spawner to use"},
-			CurrentWave = {"Expression", "Unknown (if you can figure it out, contact the plugin maker to let them know!)"},
-			CustomCombatData = {"string", "The name of a table in the CustomCombatData table to pull unit stats from"},
+			CurrentWave = {"Expression", "Unknown (if you can figure it out, contact the plugin maker to let them know!)", true},
+			CustomCombatData = {"string", "The name of a table in the CustomCombatData table to pull unit information from"},
 			CustomPantsId = {"string", "The template ID of custom pants to give to the spawned units"},
 			CustomShirtId = {"string", "The template ID of a custom shirt to give to the spawned units"},
 			EnemyType = {"string", "Defines the type (outfit) of enemies spawned, such as Swat, Palisade, Criminal, and HalcyonOperator"},
 			EnemyWeapons = {"string", "The pool of weapons enemies can spawn with, with each weapon name being separated by a bar (|); use duplicate entries to increase the chances of specific weapons being spawned"},
 			["EnemyWeaponsWave(1-9)"] = {"string", "A new attribute can be set for numbers 1 through 9; has the same formatting as EnemyWeapons, and overrides EnemyWeapons for specific waves", true},
 			FillFrequency = {"number", "The amount of time between unit spawns, in seconds"},
-			FocusPoint = {"Vector3", "Unknown (if you can figure it out, contact the plugin maker to let them know!)"},
-			ReinforcementPool = {"string", "The name of the ReinforcementPool StateComponent to use to further define enemy spawns"},
+			FocusPoint = {"Vector3", "Unknown (if you can figure it out, contact the plugin maker to let them know!)", true},
+			ReinforcementPool = {"string", "The name of the ReinforcementPool StateComponent to use to pull enemy spawns from"},
 			ServerTag = {"string", "The tag to apply to units spawned by this CoverFillSpawner"},
-			ShuffleCover = {"boolean", "Unknown (if you can figure it out, contact the plugin maker to let them know!)"},
+			ShuffleCover = {"boolean", "Unknown (if you can figure it out, contact the plugin maker to let them know!)", true},
 			SpawnCap = {"Expression -> number", "The maximum number of combat units that can be alive at the same time"},
 			SpawnsBlockedVariable = {"string", "The name of the variable that will be set to true if all possible spawn locations for enemies are unable to spawn units"},
 			SpawnTags = {"string", "Determines which combat spawners enemies will spawn at"},
@@ -209,7 +213,7 @@ local components = {
 	CustomBehaviorCondition = {
 		HelpText = "Applies a CustomBehavior to bots with a specified tag when a specific condition is met",
 		Attributes = {
-			BotServerTag = {"string", "The bot tag the CustomBehavior will apply to"},
+			BotServerTag = {"string", "The server-side bot tag the CustomBehavior will apply to"},
 			Condition = {"Expression -> boolean", "When true, applies the CustomBehavior to the specified bot(s)"},
 			CustomBehavior = {"CustomBehavior", "The CustomBehavior to apply; for more information on CustomBehavior, consult the documentation"},
 			LoopApply = {"boolean", "If true, the CustomBehavior will continue to apply even if the bot is interrupted"},
@@ -224,7 +228,7 @@ local components = {
 			DeployedOnceVariable = {"string", "The name of the variable that will be incremented once this hack is first deployed, and will not change if the hack is deallocated or redeployed"},
 			DeployedVariable = {"string", "The name of the variable that will be incremented when the hack is deployed"},
 			DeployTime = {"Expression -> number", "The amount of ticks this hack takes to deploy; ticks go by at a rate of four per second in Stealth and one per second in Loud"},
-			DescriptionKey = {"CustomString", "The text to display when the hack is hovered over in the hacking UI, formatted as \"TITLE - Short action description\""},
+			DescriptionKey = {"CustomString", "The text to display when the hack is hovered over in the hacking UI, formatted as \"TITLE - Short Action Description\""},
 			Difficulty = {"Expression -> number", "The level of Advanced Protocols needed to deploy the hack"},
 			DisableReason = {"Expression -> CustomString", "An expression returning a CustomString key if the hack should be disabled; the hack will be visible but uninteractable"},
 			IconId = {"string", "The asset ID of the icon to display for the hack in the hacking UI"},
@@ -233,8 +237,8 @@ local components = {
 			NodeId = {"number", "The network node ID of the device the hack can be deployed on"},
 			PauseCondition = {"Expression -> boolean", "When true, progress on the hack being deployed will be paused"},
 			PrimaryHack = {"boolean", "If true, the hack may be deployed without a hacking tablet through directly interacting with the device the hack may be deployed on"},
-			Priority = {"number", "The priority of which hack should be shown first as a primary hack interaction prompt, should multiple primary hacks be linked to the same device; a higher number means higher priority"},
-			ProgressVariable = {"string", "The name of the variable whose value will be set to a decimal representing the deployment progress of the hack"},
+			Priority = {"number", "The priority of which hack should be shown first as a primary hack interaction prompt, should multiple primary hacks be linked to the same device; a higher number means higher priority, and if two primary hacks on the same device have the same priority, the player may choose which one to deploy through an action wheel"},
+			ProgressVariable = {"string", "The name of the variable whose value will be set to a decimal representing the deployment progress of the hack; does not get set to 0 if the hack is deallocated"},
 			ScriptedBehavior = {"string", "This attribute currently has no use"},
 			SubtitleKey = {"CustomString", "The text to be displayed under the title text of the interacttion prompt of the hack, if the hack is a primary hack"},
 			Suspicion = {"number", "The amount of hacking risk to add for every tick the hack takes to deploy"},
@@ -242,12 +246,12 @@ local components = {
 		},
 	},
 	DelayedStateUpdate = {
-		HelpText = "Watches a specified variable for a change in its value; after a change is made to the variable, another specified variable will be incremented after a specified amount of time has passed",
+		HelpText = "Watches a specified variable for a change in its value; after a change is made to the variable, another specified variable will be copy the variable's value after a specified amount of time has passed",
 		Attributes = {
 			DelayTime = {"number", "The amount of time in seconds it takes for the variable set in SetVariable to be incremented after the variable set in Watch is updated"},
-			OnlyMatch = {"boolean", "If false, all updates to the Watch variable will trigger individual increments to the SetVariable variable; if true, the SetVariable variable will be incremented only after the DelayTime passes with no further updates to the Watch variable"},
-			SetVariable = {"string", "The name of the variable to be incremented"},
-			Watch = {"string", "The name of the variable that will be watched for updates"},
+			OnlyMatch = {"boolean", "If false, all updates to the Watch variable will trigger individual updates to the SetVariable variable; if true, the SetVariable variable will be updated only after the DelayTime passes with no further updates to the Watch variable"},
+			SetVariable = {"string", "The name of the variable to be changed"},
+			Watch = {"string", "The name of the variable that will be watched for updates and copied over to the SetVariable"},
 		},
 	},
 	FileUITrigger = {
@@ -257,7 +261,7 @@ local components = {
 			Lines = {"string", "A list of CustomStrings to be displayed on the file in a randomized order, separated by bars (|)"},
 			NoExtraPaper = {"boolean", "If true, extra papers will not be displayed behind the paper file on-screen"},
 			NoFolder = {"boolean", "If true, a folder will not be displayed behind the paper file on-screen"},
-			ShowTape = {"boolean", "If true, tape will be shown with the paper file on-screen"},
+			ShowTape = {"boolean", "If true, a strip of tape will be shown with the paper file on-screen"},
 			TextScale = {"number", "The scale of the text to be shown on the file"},
 			Trigger = {"Expression -> boolean", "When true, the file will be shown on the player's screen"},
 		},
@@ -291,7 +295,6 @@ local components = {
 		Attributes = {
 			CompromisedVariable = {"string", "The name of the variable whose value will be set to true when the specified node is compromised"},
 			DisabledVariable = {"string", "The name of the variable whose value will be set to true when the specified node is disabled"},
-			GlobalVariable = {"boolean", "This attribute is no longer in use"},
 			NetworkId = {"number", "The network node ID of the device to check the status of"},
 		},
 	},
@@ -404,7 +407,7 @@ local components = {
 			Title = {"CustomString", "The title to show on the card"},
 		},
 	},
-	MissionCompleteTrigger = {
+	MissionCompletionTrigger = {
 		HelpText = "Ends the mission as a successful completion when a specific condition is met",
 		Attributes = {
 			CompleteVariable = {"string", "The name of the variable whose value will be set to true when this MissionCompleteTrigger is activated"},
@@ -426,6 +429,7 @@ local components = {
 			ActivePriority = {"Expression -> number", "The priority value for this MusicController; the MusicController with the highest priority value will play its music"},
 			MusicType = {"string", "Currently non-functional"},
 			NoLoop = {"boolean", "If true, the music played by this MusicController will not loop when it is finished playing"},
+			PersistOnReload = {"boolean", "If true, the music played by this MusicController will not restart after the mission is restarted"},
 			TrackId = {"string", "The asset ID of the audio to be played as background music by this MusicController"},
 			Volume = {"number", "The volume of the music played by this MusicController, as a decimal between zero and one"},
 		},
@@ -466,13 +470,15 @@ local components = {
 		},
 	},
 	ReinforcementPool = {
-		HelpText = "Further defines spawns for CombatSpawner StateComponents by supplying them with waves of units",
+		HelpText = "Defines and supplies enemy wave amounts for CombatSpawner and CoverFillSpawner StateComponents",
 		Attributes = {
 			ActiveVariable = {"string", "The name of the variable whose value will be set to the number of units from this pool currently fighting players"},
 			PoolLimit = {"Expression -> number", "Defines the number of units in a combat unit pool"},
 			PoolName = {"string", "The name of the pool referenced by CombatSpawner StateComponents"},
 			RemainingVariable = {"string", "The name of the variable whose value will be set to the number of currently active units spawned from this pool plus the number of units still available in this pool"},
-			WaveResetTime = {"number", "The amount of time it takes, in seconds, for the reinforcement pool to fill back up with units after the last unit from the pool is sent out"},
+			WaveResetMaxTime = {"Expression -> number", "To be used with WaveResetThreshold; the maximum amount of time in seconds before the enemy wave resets regardless of how many enemies are still remaining"},
+			WaveResetThreshold = {"number", "If set, the maximum number of units from this pool that can be alive before the pool's wave reset timer starts"},
+			WaveResetTime = {"Expression -> number", "The amount of time it takes, in seconds, for the reinforcement pool to fill back up with units after the last unit from the pool is sent out"},
 			WaveResetTimeDecrease = {"number", "The amount of time the reset time for the pool decreases, in seconds, every time the pool is reset"},
 			WaveResetTimeMinimum = {"number", "The minimum amount of time the pool reset time can go down to, in seconds"},
 			WaveStateVariable = {"string", "Currently non-functional"},
@@ -489,7 +495,7 @@ local components = {
 	ScriptedTakedown = {
 		HelpText = "Knocks out or kills specified bot(s) when a specific condition is met",
 		Attributes = {
-			BotServerTag = {"string", "The bot tag to affect"},
+			BotServerTag = {"string", "The server-side bot tag to affect"},
 			Lethal = {"boolean", "If true, affected bot(s) will be killed rather than knocked unconscious"},
 			Trigger = {"Expression -> boolean", "When true, this ScriptedTakedown will activate"},
 		},
@@ -497,7 +503,7 @@ local components = {
 	SearchPatternCondition = {
 		HelpText = "Triggers specified bots to begin roaming the nodes defined in their SearchArea attribute when a specific condition is met",
 		Attributes = {
-			BotServerTag = {"string", "The bot tag targeted by the SearchPatternCondition"},
+			BotServerTag = {"string", "The server-side bot tag targeted by the SearchPatternCondition"},
 			Condition = {"Expression -> boolean", "When true, specified bots will begin roaming their SearchArea nodes"},
 			Pace = {"number", "The speed at which searching bots will move; 1 is normal, 2 is super fast walking, 3 is running, 4 is fast walking, and anything else is a complete stop"},
 			UseWeapon = {"boolean", "If true, searching bots will hold their weapon out while walking and become immune to intimidation"},
@@ -537,11 +543,11 @@ local components = {
 		},
 	},
 	StateUpdate = {
-		HelpText = "Watches a specified variable for a change in its value; after a change is made to the variable, another specified variable will be incremented",
+		HelpText = "Watches a specified variable for a change in its value; after a change is made to the variable, another specified variable will be set to the variable's value",
 		Attributes = {
-			SetInternal = {"string", "The name of an internal variable to be incremented"},
-			SetVariable = {"string", "The name of a global variable to be incremented"},
-			Watch = {"string", "The name of the variable that will be watched for updates"},
+			SetInternal = {"string", "The name of an internal variable to be changed"},
+			SetVariable = {"string", "The name of a global variable to be changed"},
+			Watch = {"string", "The name of the variable that will be watched for updates and copied over to specified variables"},
 		},
 	},
 	TimerComponent = {
