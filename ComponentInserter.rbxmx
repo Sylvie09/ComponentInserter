@@ -1,7 +1,7 @@
 <roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
 	<External>null</External>
 	<External>nil</External>
-	<Item class="Folder" referent="RBX9CAB0760443B40F0A53355EE0C445141">
+	<Item class="Folder" referent="RBXD598097049CB49C7AFE7C62D884306CA">
 		<Properties>
 			<BinaryString name="AttributesSerialize"></BinaryString>
 			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -10,9 +10,9 @@
 			<int64 name="SourceAssetId">-1</int64>
 			<BinaryString name="Tags"></BinaryString>
 		</Properties>
-		<Item class="Script" referent="RBXD851169A9C4A4A638597428EB3C6410A">
+		<Item class="Script" referent="RBX15983C945E314A74BBD5C7B43257D790">
 			<Properties>
-				<ProtectedString name="Source"><![CDATA[local componentInserterVersion = "1.4"
+				<ProtectedString name="Source"><![CDATA[local componentInserterVersion = "1.4.1"
 
 local selection = game:GetService("Selection")
 local httpService = game:GetService("HttpService")
@@ -42,7 +42,14 @@ local attributeBlacklist = {
 	EnemyWeaponsWave9 = true,
 }
 
-local apiSuccess, api = apiConsumer.TryGetAPI()
+local api = apiConsumer.WaitForAPI(20)
+local apiSuccess = api ~= nil
+
+if not apiSuccess then
+	warn("Component Inserter: Failed to start, could not get serializer API")
+else
+	print("Component Inserter: Plugin successfully started")
+end
 
 local attributesMap = if apiSuccess then api.GetAttributesMap() else nil
 
@@ -364,7 +371,7 @@ end)
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
 		</Item>
-		<Item class="ModuleScript" referent="RBXE38A3DD259A74F5AA594A91C14183EB7">
+		<Item class="ModuleScript" referent="RBX1B370A5775EF49E599BD2E67C8B9E218">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<ProtectedString name="Source"><![CDATA[--[[
@@ -581,7 +588,7 @@ return APIConsumer]]></ProtectedString>
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
 		</Item>
-		<Item class="ModuleScript" referent="RBXD7CA8895BB394F7AB65E9925296DED9C">
+		<Item class="ModuleScript" referent="RBXD81DCFE385A64ECB8D86340EEFA50D60">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<ProtectedString name="Source"><![CDATA[local attributeValues = {
@@ -612,7 +619,7 @@ return attributeValues
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
 		</Item>
-		<Item class="ModuleScript" referent="RBX82F9873DB4ED48469AD12793D7ADC977">
+		<Item class="ModuleScript" referent="RBX77CDEA3073D243C5A17AEBD8CB093831">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<ProtectedString name="Source"><![CDATA[local template = {
@@ -1205,7 +1212,7 @@ return components
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
 		</Item>
-		<Item class="ModuleScript" referent="RBX60D8897B67B846998C576E24946FABCB">
+		<Item class="ModuleScript" referent="RBX86A4363614DD4E9EA7E6CAD0562304EC">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<ProtectedString name="Source"><![CDATA[--[=[
@@ -1428,7 +1435,7 @@ return G2L["2"];]]></ProtectedString>
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
 		</Item>
-		<Item class="ModuleScript" referent="RBXE55808A812F145F3973317C639488E1B">
+		<Item class="ModuleScript" referent="RBX01E809E8B70D4860BBF7490E831E113B">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<ProtectedString name="Source"><![CDATA[local typeConversion = {

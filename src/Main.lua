@@ -1,4 +1,4 @@
-local componentInserterVersion = "1.4"
+local componentInserterVersion = "1.4.1"
 
 local selection = game:GetService("Selection")
 local httpService = game:GetService("HttpService")
@@ -28,7 +28,14 @@ local attributeBlacklist = {
 	EnemyWeaponsWave9 = true,
 }
 
-local apiSuccess, api = apiConsumer.TryGetAPI()
+local api = apiConsumer.WaitForAPI(20)
+local apiSuccess = api ~= nil
+
+if not apiSuccess then
+	warn("Component Inserter: Failed to start, could not get serializer API")
+else
+	print("Component Inserter: Plugin successfully started")
+end
 
 local attributesMap = if apiSuccess then api.GetAttributesMap() else nil
 
