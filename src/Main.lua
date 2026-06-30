@@ -1,19 +1,56 @@
+local componentInserterVersion = "1.4"
+
 local selection = game:GetService("Selection")
+local httpService = game:GetService("HttpService")
 local root = script.Parent
 require(root.ConstructGUI)
 local components = require(root.Components)
 local attributeValues = require(root.AttributeValues)
+local typeConversion = require(root.TypeConversion)
+local apiConsumer = require(root.APIConsumer)
+
 local mainFrame = root.MainFrame
 local componentTemplate = mainFrame.ComponentTemplate
 local componentList = mainFrame.ComponentList
 local searchBar = mainFrame.Search
 local helpHeader = mainFrame.HelpHeader
 local helpScroll = mainFrame.HelpScroll
-local apiConsumer = require(root.APIConsumer)
+
+local attributeBlacklist = {
+	EnemyWeaponsWave1 = true,
+	EnemyWeaponsWave2 = true,
+	EnemyWeaponsWave3 = true,
+	EnemyWeaponsWave4 = true,
+	EnemyWeaponsWave5 = true,
+	EnemyWeaponsWave6 = true,
+	EnemyWeaponsWave7 = true,
+	EnemyWeaponsWave8 = true,
+	EnemyWeaponsWave9 = true,
+}
 
 local apiSuccess, api = apiConsumer.TryGetAPI()
 
 local attributesMap = if apiSuccess then api.GetAttributesMap() else nil
+
+local function CheckForUpdate()
+	local success, returnData = pcall(function()
+		return httpService:GetAsync("https://raw.githubusercontent.com/Sylvie09/ComponentInserter/refs/heads/main/src/Main.lua")
+	end)
+	
+	if not success then
+		warn("Component Inserter: Failed to check GitHub plugin version; error: " .. returnData)
+		return
+	end
+	
+	if (not string.find(returnData, "componentInserterVersion")) or string.find(returnData, 'componentInserterVersion = "' .. componentInserterVersion .. '"') then
+		print("Component Inserter: Installed plugin is up to date")
+		return
+	end
+	
+	warn("Component Inserter: Installed plugin does not match version on GitHub; be sure to download the most recent version of the plugin for new fixes and additions")
+end
+
+CheckForUpdate()
 
 local toolbar = plugin:CreateToolbar("Component Inserter")
 local pluginButton = toolbar:CreateButton(
@@ -69,16 +106,47 @@ local function GetComponentAttributes(stateComponent: string)
 	local returnTable = {}
 
 	if apiSuccess and attributesMap[stateComponent] then
+		local currentValue
 		for i, v in pairs(attributesMap[stateComponent]) do
-			returnTable[i] = v[2]
+			if attributeBlacklist[i] then continue end
+			
+			if v[2] ~= nil then
+				if (typeConversion[v[1]] == "Expression -> number") or (typeConversion[v[1]] == "Expression" and typeof(v[2]) == "number") then
+					currentValue = tostring(v[2])
+				else
+					currentValue = v[2]
+				end
+			else
+				currentValue = attributeValues[typeConversion[v[1]]]
+			end
+			
+			returnTable[i] = {
+				Name = i,
+				Value = currentValue,
+				Type = typeConversion[v[1]],
+				Info = nil,
+				NoInsert = false,
+				IgnoreUnserialized = false,
+			}
 		end
 	end
-
+	
 	if components[stateComponent] then
+		local previousValue
 		for i, v in pairs(components[stateComponent].Attributes) do
-			if v[3] then continue end
-			if returnTable[i] then continue end
-			returnTable[i] = attributeValues[v[1]]
+			if returnTable[i] and (returnTable[i].Value ~= nil) then
+				previousValue = returnTable[i].Value
+			else
+				previousValue = nil
+			end
+			returnTable[i] = {
+				Name = i,
+				Value = previousValue or attributeValues[v[1]],
+				Type = v[1],
+				Info = v[2],
+				NoInsert = v[3],
+				IgnoreUnserialized = v[4],
+			}
 		end
 	end
 
@@ -87,14 +155,14 @@ end
 
 local function InsertStateComponent(stateComponent: string)
 	if not components[stateComponent] and not attributesMap[stateComponent] then
-		warn("ComponentInserter: Attempted to insert StateComponent with invalid name; if you see this warning, please contact Sylvie09")
+		warn("Component Inserter: Attempted to insert StateComponent with invalid name; if you see this warning, please contact Sylvie09")
 		return
 	end
 
 	local debugMission = workspace:FindFirstChild("DebugMission")
 
 	if not debugMission then
-		warn("ComponentInserter: Could not insert, no DebugMission folder found")
+		warn("Component Inserter: Could not insert, no DebugMission folder found")
 		return
 	end
 
@@ -104,7 +172,7 @@ local function InsertStateComponent(stateComponent: string)
 		stateComponentsFolder = Instance.new("Folder")
 		stateComponentsFolder.Name = "StateComponents"
 		stateComponentsFolder.Parent = debugMission
-		print("ComponentInserter: Couldn't find StateComponents folder in DebugMission and created a new one")
+		print("Component Inserter: Couldn't find StateComponents folder in DebugMission and created a new one")
 	end
 
 	local newComponent = Instance.new("BoolValue")
@@ -124,8 +192,9 @@ local function InsertStateComponent(stateComponent: string)
 	
 	newComponent.Parent = newParent
 
-	for attribute, value in pairs(GetComponentAttributes(stateComponent)) do
-		newComponent:SetAttribute(attribute, value)
+	for attribute, properties in pairs(GetComponentAttributes(stateComponent)) do
+		if properties.NoInsert then continue end
+		newComponent:SetAttribute(attribute, properties.Value)
 	end
 
 	selection:Set({newComponent})
@@ -133,16 +202,20 @@ end
 
 function LoadComponentHelp(stateComponent: string)
 	if not components[stateComponent] then
-		warn("Attempted to load help for invalid StateComponent name")
+		warn("Component Inserter: Attempted to load help for an unknown StateComponent")
 		return
 	end
 
 	helpHeader.ComponentTitle.Text = stateComponent
 
 	local componentTable = components[stateComponent]
-	local attributeTable = componentTable.Attributes
+	local attributeTable = GetComponentAttributes(stateComponent)
 
 	local finalText = componentTable.HelpText
+	
+	if not attributesMap[stateComponent] then
+		finalText ..= '\n\n<b><font color="#FF7800">This component is not supported by the currently installed serializer and will not be properly exported with the mission. Make sure your serializer is the most recent version</font></b>'
+	end
 
 	local attributeKeys = {}
 	for i, v in pairs(attributeTable) do
@@ -163,9 +236,28 @@ function LoadComponentHelp(stateComponent: string)
 
 		return val1:len() < val2:len()
 	end)
-
+	
+	local attributeType
+	local attributeInfo
+	local unserializedAttribute = false
+	local currentAttributeUnserialized = false
+	
 	for i, v in ipairs(attributeKeys) do
-		finalText ..= "\n\n<b>" .. v .. " [" .. attributeTable[v][1] .. "]:</b> " .. attributeTable[v][2]
+		attributeType = attributeTable[v]["Type"] or "Unknown"
+		attributeInfo = attributeTable[v]["Info"] or "This attribute is unknown to the currently installed version of Component Inserter"
+		
+		currentAttributeUnserialized = ((not attributesMap[stateComponent]) or (not attributesMap[stateComponent][v])) and not attributeTable[v]["IgnoreUnserialized"]
+		unserializedAttribute = unserializedAttribute or currentAttributeUnserialized
+		
+		if currentAttributeUnserialized then
+			finalText ..= '\n\n<b><font color="#FF7800">' .. v .. '*</font> [' .. attributeType .. ']:</b> ' .. attributeInfo
+		else
+			finalText ..= "\n\n<b>" .. v .. " [" .. attributeType .. "]:</b> " .. attributeInfo
+		end
+	end
+	
+	if unserializedAttribute then
+		finalText ..= '\n\n<b><font color="#FF7800">*Some attributes of this component are not supported by the currently installed serializer and will not be properly exported with the mission. Make sure your serializer is the most recent version</font></b>'
 	end
 
 	helpScroll.TextLabel.Text = finalText
@@ -183,7 +275,11 @@ local function PopulateComponentList()
 		newComponentFrame = componentTemplate:Clone()
 
 		newComponentFrame.Name = i
-		newComponentFrame.ComponentName.Text = i
+		if attributesMap[i] then
+			newComponentFrame.ComponentName.Text = i
+		else
+			newComponentFrame.ComponentName.Text = '<font color="#FF7800">' .. i .. '</font>'
+		end
 		newComponentFrame.Visible = true
 
 		newComponentFrame.Parent = componentList

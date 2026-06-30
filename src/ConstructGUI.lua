@@ -101,6 +101,7 @@ G2L["9"]["TextColor3"] = Color3.fromRGB(255, 255, 255);
 G2L["9"]["BackgroundColor3"] = Color3.fromRGB(129, 129, 129);
 G2L["9"]["FontFace"] = Font.new([[rbxasset://fonts/families/SourceSansPro.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal);
 G2L["9"]["BackgroundTransparency"] = 0.65;
+G2L["9"]["RichText"] = true;
 G2L["9"]["Size"] = UDim2.new(1, -35, 0, 35);
 G2L["9"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
 G2L["9"]["Name"] = [[ComponentName]];

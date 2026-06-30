@@ -1,7 +1,7 @@
 <roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
 	<External>null</External>
 	<External>nil</External>
-	<Item class="Folder" referent="RBX2D6B46EDA8474334B7897A87FE3290EF">
+	<Item class="Folder" referent="RBX9CAB0760443B40F0A53355EE0C445141">
 		<Properties>
 			<BinaryString name="AttributesSerialize"></BinaryString>
 			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -10,24 +10,61 @@
 			<int64 name="SourceAssetId">-1</int64>
 			<BinaryString name="Tags"></BinaryString>
 		</Properties>
-		<Item class="Script" referent="RBX3733051718434A0C9097DF5463718540">
+		<Item class="Script" referent="RBXD851169A9C4A4A638597428EB3C6410A">
 			<Properties>
-				<ProtectedString name="Source"><![CDATA[local selection = game:GetService("Selection")
+				<ProtectedString name="Source"><![CDATA[local componentInserterVersion = "1.4"
+
+local selection = game:GetService("Selection")
+local httpService = game:GetService("HttpService")
 local root = script.Parent
 require(root.ConstructGUI)
 local components = require(root.Components)
 local attributeValues = require(root.AttributeValues)
+local typeConversion = require(root.TypeConversion)
+local apiConsumer = require(root.APIConsumer)
+
 local mainFrame = root.MainFrame
 local componentTemplate = mainFrame.ComponentTemplate
 local componentList = mainFrame.ComponentList
 local searchBar = mainFrame.Search
 local helpHeader = mainFrame.HelpHeader
 local helpScroll = mainFrame.HelpScroll
-local apiConsumer = require(root.APIConsumer)
+
+local attributeBlacklist = {
+	EnemyWeaponsWave1 = true,
+	EnemyWeaponsWave2 = true,
+	EnemyWeaponsWave3 = true,
+	EnemyWeaponsWave4 = true,
+	EnemyWeaponsWave5 = true,
+	EnemyWeaponsWave6 = true,
+	EnemyWeaponsWave7 = true,
+	EnemyWeaponsWave8 = true,
+	EnemyWeaponsWave9 = true,
+}
 
 local apiSuccess, api = apiConsumer.TryGetAPI()
 
 local attributesMap = if apiSuccess then api.GetAttributesMap() else nil
+
+local function CheckForUpdate()
+	local success, returnData = pcall(function()
+		return httpService:GetAsync("https://raw.githubusercontent.com/Sylvie09/ComponentInserter/refs/heads/main/src/Main.lua")
+	end)
+	
+	if not success then
+		warn("Component Inserter: Failed to check GitHub plugin version; error: " .. returnData)
+		return
+	end
+	
+	if (not string.find(returnData, "componentInserterVersion")) or string.find(returnData, 'componentInserterVersion = "' .. componentInserterVersion .. '"') then
+		print("Component Inserter: Installed plugin is up to date")
+		return
+	end
+	
+	warn("Component Inserter: Installed plugin does not match version on GitHub; be sure to download the most recent version of the plugin for new fixes and additions")
+end
+
+CheckForUpdate()
 
 local toolbar = plugin:CreateToolbar("Component Inserter")
 local pluginButton = toolbar:CreateButton(
@@ -83,16 +120,47 @@ local function GetComponentAttributes(stateComponent: string)
 	local returnTable = {}
 
 	if apiSuccess and attributesMap[stateComponent] then
+		local currentValue
 		for i, v in pairs(attributesMap[stateComponent]) do
-			returnTable[i] = v[2]
+			if attributeBlacklist[i] then continue end
+			
+			if v[2] ~= nil then
+				if (typeConversion[v[1]] == "Expression -> number") or (typeConversion[v[1]] == "Expression" and typeof(v[2]) == "number") then
+					currentValue = tostring(v[2])
+				else
+					currentValue = v[2]
+				end
+			else
+				currentValue = attributeValues[typeConversion[v[1]]]
+			end
+			
+			returnTable[i] = {
+				Name = i,
+				Value = currentValue,
+				Type = typeConversion[v[1]],
+				Info = nil,
+				NoInsert = false,
+				IgnoreUnserialized = false,
+			}
 		end
 	end
-
+	
 	if components[stateComponent] then
+		local previousValue
 		for i, v in pairs(components[stateComponent].Attributes) do
-			if v[3] then continue end
-			if returnTable[i] then continue end
-			returnTable[i] = attributeValues[v[1]]
+			if returnTable[i] and (returnTable[i].Value ~= nil) then
+				previousValue = returnTable[i].Value
+			else
+				previousValue = nil
+			end
+			returnTable[i] = {
+				Name = i,
+				Value = previousValue or attributeValues[v[1]],
+				Type = v[1],
+				Info = v[2],
+				NoInsert = v[3],
+				IgnoreUnserialized = v[4],
+			}
 		end
 	end
 
@@ -101,14 +169,14 @@ end
 
 local function InsertStateComponent(stateComponent: string)
 	if not components[stateComponent] and not attributesMap[stateComponent] then
-		warn("ComponentInserter: Attempted to insert StateComponent with invalid name; if you see this warning, please contact Sylvie09")
+		warn("Component Inserter: Attempted to insert StateComponent with invalid name; if you see this warning, please contact Sylvie09")
 		return
 	end
 
 	local debugMission = workspace:FindFirstChild("DebugMission")
 
 	if not debugMission then
-		warn("ComponentInserter: Could not insert, no DebugMission folder found")
+		warn("Component Inserter: Could not insert, no DebugMission folder found")
 		return
 	end
 
@@ -118,7 +186,7 @@ local function InsertStateComponent(stateComponent: string)
 		stateComponentsFolder = Instance.new("Folder")
 		stateComponentsFolder.Name = "StateComponents"
 		stateComponentsFolder.Parent = debugMission
-		print("ComponentInserter: Couldn't find StateComponents folder in DebugMission and created a new one")
+		print("Component Inserter: Couldn't find StateComponents folder in DebugMission and created a new one")
 	end
 
 	local newComponent = Instance.new("BoolValue")
@@ -138,8 +206,9 @@ local function InsertStateComponent(stateComponent: string)
 	
 	newComponent.Parent = newParent
 
-	for attribute, value in pairs(GetComponentAttributes(stateComponent)) do
-		newComponent:SetAttribute(attribute, value)
+	for attribute, properties in pairs(GetComponentAttributes(stateComponent)) do
+		if properties.NoInsert then continue end
+		newComponent:SetAttribute(attribute, properties.Value)
 	end
 
 	selection:Set({newComponent})
@@ -147,16 +216,20 @@ end
 
 function LoadComponentHelp(stateComponent: string)
 	if not components[stateComponent] then
-		warn("Attempted to load help for invalid StateComponent name")
+		warn("Component Inserter: Attempted to load help for an unknown StateComponent")
 		return
 	end
 
 	helpHeader.ComponentTitle.Text = stateComponent
 
 	local componentTable = components[stateComponent]
-	local attributeTable = componentTable.Attributes
+	local attributeTable = GetComponentAttributes(stateComponent)
 
 	local finalText = componentTable.HelpText
+	
+	if not attributesMap[stateComponent] then
+		finalText ..= '\n\n<b><font color="#FF7800">This component is not supported by the currently installed serializer and will not be properly exported with the mission. Make sure your serializer is the most recent version</font></b>'
+	end
 
 	local attributeKeys = {}
 	for i, v in pairs(attributeTable) do
@@ -177,9 +250,28 @@ function LoadComponentHelp(stateComponent: string)
 
 		return val1:len() < val2:len()
 	end)
-
+	
+	local attributeType
+	local attributeInfo
+	local unserializedAttribute = false
+	local currentAttributeUnserialized = false
+	
 	for i, v in ipairs(attributeKeys) do
-		finalText ..= "\n\n<b>" .. v .. " [" .. attributeTable[v][1] .. "]:</b> " .. attributeTable[v][2]
+		attributeType = attributeTable[v]["Type"] or "Unknown"
+		attributeInfo = attributeTable[v]["Info"] or "This attribute is unknown to the currently installed version of Component Inserter"
+		
+		currentAttributeUnserialized = ((not attributesMap[stateComponent]) or (not attributesMap[stateComponent][v])) and not attributeTable[v]["IgnoreUnserialized"]
+		unserializedAttribute = unserializedAttribute or currentAttributeUnserialized
+		
+		if currentAttributeUnserialized then
+			finalText ..= '\n\n<b><font color="#FF7800">' .. v .. '*</font> [' .. attributeType .. ']:</b> ' .. attributeInfo
+		else
+			finalText ..= "\n\n<b>" .. v .. " [" .. attributeType .. "]:</b> " .. attributeInfo
+		end
+	end
+	
+	if unserializedAttribute then
+		finalText ..= '\n\n<b><font color="#FF7800">*Some attributes of this component are not supported by the currently installed serializer and will not be properly exported with the mission. Make sure your serializer is the most recent version</font></b>'
 	end
 
 	helpScroll.TextLabel.Text = finalText
@@ -197,7 +289,11 @@ local function PopulateComponentList()
 		newComponentFrame = componentTemplate:Clone()
 
 		newComponentFrame.Name = i
-		newComponentFrame.ComponentName.Text = i
+		if attributesMap[i] then
+			newComponentFrame.ComponentName.Text = i
+		else
+			newComponentFrame.ComponentName.Text = '<font color="#FF7800">' .. i .. '</font>'
+		end
 		newComponentFrame.Visible = true
 
 		newComponentFrame.Parent = componentList
@@ -268,7 +364,7 @@ end)
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
 		</Item>
-		<Item class="ModuleScript" referent="RBX1FC4884B001740E7B78688F2F9FE19AD">
+		<Item class="ModuleScript" referent="RBXE38A3DD259A74F5AA594A91C14183EB7">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<ProtectedString name="Source"><![CDATA[--[[
@@ -281,10 +377,15 @@ end)
 
 local coreGui = game:GetService("CoreGui")
 
+local mainPluginThread = coroutine.running()
+
 export type Token = string
 export type Hook = (...any) -> nil
 export type HookType = "APIExtensionLoaded"|"APIExtensionUnloaded"|"PreSerialize"|"PreSerializeMissionSetup"|"SerializerUnloaded"
 export type APIExtension = { [string] : (...any) -> ...any }
+
+export type APINotifSev  = "MIN"|"INFO"|"WARN"|"ERR"|"ERR_SEVERE"|"MAX"|number
+export type APINotifData = { Title: string, Description: string, Severity: APINotifSev, Rich: boolean? }
 
 export type APIReference = {
 	-- Generic
@@ -292,7 +393,9 @@ export type APIReference = {
 	GetCodeVersion 			: () -> number,
 	GetAttributesMap 		: () -> { [string] : { [number] : any } },
 	GetAttributeTypes 		: () -> { [string] : number },
-	GetRegistrantFactory	: (author: string, plugin: string) -> ((hookName: string) -> string), 
+	IsAPIThread				: (thread) -> boolean,
+	GetRegistrantFactory	: (author: string, plugin: string) -> ((hookName: string) -> string),
+	PushNotification		: (notif_data: APINotifData) -> boolean?,
 
 	-- HookTypes
 	GetHookTypes 			: () -> { [number] : string },
@@ -327,6 +430,13 @@ local function ValidateArgTypes(fname: string, ...) : boolean
 	return true
 end
 
+local function VersionCheck(attemptedAction: string, apiRef: APIReference?, minVersion: number)
+	if apiRef == nil then return end
+	local apiVer = apiRef.GetAPIVersion()
+	if apiVer >= minVersion then return end
+	error(`APIConsumer : Attempt to {attemptedAction}, but available API is below the minimum supported version! : Expected v{minVersion}+, got v{apiVer}`)
+end
+
 APIConsumer.ValidateArgTypes = ValidateArgTypes
 
 -- Yields until timeOut is elapsed or API is found
@@ -356,6 +466,52 @@ APIConsumer.TryGetAPI = function() : (boolean, APIReference?)
 	if not (tostring(apiTbl) == presenceIndicator.Value) then return false, nil end
 
 	return true, apiTbl
+end
+
+-- Attempt to yield for the given duration in seconds, issuing an API command if caller was invoked as an API hook
+-- If not on the API thread, or the main plugin thread, returns nil - you'll need to implement waiting yourself if using coroutines in your plugin
+-- [WARNING] Does not work on API versions below v1
+APIConsumer.Wait = function(duration: number?) : number?
+	if duration == nil then duration = 0 end
+	local currentCo = coroutine.running()
+	local success, api = APIConsumer.TryGetAPI()
+	VersionCheck(`yield for {duration}s`, api, 1)
+	if currentCo == mainPluginThread then
+		return task.wait(duration)
+	elseif success and api.IsAPIThread(currentCo) then
+		local duration = coroutine.yield("CMD_WAIT", duration)
+		return duration
+	else
+		return nil
+	end
+end
+
+-- Attempt to wait on an event, issuing an API command if caller was invoked as an API hook
+-- If not on the API thread, or the main plugin thread, returns nil - you'll need to implement waiting yourself if using coroutines in your plugin
+-- [WARNING] Does not work on API versions below v1
+APIConsumer.WaitOnEvent = function(event: RBXScriptSignal) : (boolean, boolean, ...any)
+	local currentCo = coroutine.running()
+	local success, api = APIConsumer.TryGetAPI()
+	VersionCheck("yield on event", api, 1)
+	if currentCo == mainPluginThread then
+		local rets = { event:Wait() }
+		return true, true, unpack(rets)
+	elseif success and api.IsAPIThread(currentCo) then
+		return true, coroutine.yield("CMD_WAIT_EVENT", event)
+	else
+		return false, false
+	end
+end
+
+-- Yield until another plugin finishes execution
+APIConsumer.WaitForPluginFinish = function(invokeState, author: string, pluginName: string, hookType: HookType)
+	local pluginPrefix = `{author}_{pluginName}_{hookType}`
+	local _, present = invokeState.Get(`{pluginPrefix}_Present`)
+	if not present then return end
+	repeat
+		coroutine.yield()
+		local success, done = invokeState.Get(`{pluginPrefix}`, "Done")
+	until success and done
 end
 
 -- Never returns unless there's an error
@@ -393,6 +549,7 @@ APIConsumer.DoAPILoop = function<StateT>(
 
 	loadedClbck(api, state)
 
+	local unloadedCallback = Instance.new("BindableEvent")
 	local pluginUnloadCallback
 	local unloadToken
 
@@ -404,10 +561,14 @@ APIConsumer.DoAPILoop = function<StateT>(
 	end)
 
 	unloadToken = api.AddHook("SerializerUnloaded", `APIConsumerFramework_{srcname}`, function()
+		unloadedCallback:Fire()
 		if pluginUnloadCallback then pluginUnloadCallback:Disconnect() pluginUnloadCallback = nil end
 		unloadedClbck(api, state)
-		task.spawn(APIConsumer.DoAPILoop, callerPlugin, srcname, loadedClbck, unloadedClbck, state)
 	end)
+
+	unloadedCallback.Event:Wait()
+	unloadedCallback:Destroy()
+	APIConsumer.DoAPILoop(callerPlugin, srcname, loadedClbck, unloadedClbck, state)
 end
 
 return APIConsumer]]></ProtectedString>
@@ -420,7 +581,7 @@ return APIConsumer]]></ProtectedString>
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
 		</Item>
-		<Item class="ModuleScript" referent="RBX3F6A656BCE1B421DA4FAF24DC5693717">
+		<Item class="ModuleScript" referent="RBXD7CA8895BB394F7AB65E9925296DED9C">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<ProtectedString name="Source"><![CDATA[local attributeValues = {
@@ -437,6 +598,7 @@ return APIConsumer]]></ProtectedString>
 	StateScript = "",
 	Color = Color3.new(0, 0, 0),
 	Vector3 = Vector3.new(0, 0, 0),
+	CFrame = CFrame.new(),
 }
 
 return attributeValues
@@ -450,7 +612,7 @@ return attributeValues
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
 		</Item>
-		<Item class="ModuleScript" referent="RBX351A68DEA6884AC08C8F80A4628B322C">
+		<Item class="ModuleScript" referent="RBX82F9873DB4ED48469AD12793D7ADC977">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<ProtectedString name="Source"><![CDATA[local template = {
@@ -568,7 +730,7 @@ local components = {
 			CustomShirtId = {"string", "The template ID of a custom shirt to give to the spawned units"},
 			EnemyType = {"string", "Defines the type (outfit and base stats) of enemies spawned, such as Swat, Palisade, Criminal, and HalcyonOperator"},
 			EnemyWeapons = {"string", "The pool of weapons enemies can spawn with, with each weapon name being separated by a bar (|); use duplicate entries to increase the chances of specific weapons being spawned"},
-			["EnemyWeaponsWave(1-9)"] = {"string", "A new attribute can be set for numbers 1 through 9; has the same formatting as EnemyWeapons, and overrides EnemyWeapons for specific waves", true},
+			["EnemyWeaponsWave(1-9)"] = {"string", "A new attribute can be set for numbers 1 through 9; has the same formatting as EnemyWeapons, and overrides EnemyWeapons for specific waves", true, true},
 			FallbackCondition = {"Expression -> boolean", "When true, units spawned by this CombatSpawner will retreat to a CombatRetreatPoint prop and despawn"},
 			FlowMap = {"string", "The name of the CombatFlowMap to tie enemies to"},
 			ReinforcementPool = {"string", "The name of the ReinforcementPool StateComponent to use to pull enemy spawns from"},
@@ -647,7 +809,7 @@ local components = {
 			CustomShirtId = {"string", "The template ID of a custom shirt to give to the spawned units"},
 			EnemyType = {"string", "Defines the type (outfit) of enemies spawned, such as Swat, Palisade, Criminal, and HalcyonOperator"},
 			EnemyWeapons = {"string", "The pool of weapons enemies can spawn with, with each weapon name being separated by a bar (|); use duplicate entries to increase the chances of specific weapons being spawned"},
-			["EnemyWeaponsWave(1-9)"] = {"string", "A new attribute can be set for numbers 1 through 9; has the same formatting as EnemyWeapons, and overrides EnemyWeapons for specific waves", true},
+			["EnemyWeaponsWave(1-9)"] = {"string", "A new attribute can be set for numbers 1 through 9; has the same formatting as EnemyWeapons, and overrides EnemyWeapons for specific waves", true, true},
 			FillFrequency = {"number", "The amount of time between unit spawns, in seconds"},
 			FocusPoint = {"Vector3", "Unknown (if you can figure it out, contact the plugin maker to let them know!)", true},
 			ReinforcementPool = {"string", "The name of the ReinforcementPool StateComponent to use to pull enemy spawns from"},
@@ -1043,7 +1205,7 @@ return components
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
 		</Item>
-		<Item class="ModuleScript" referent="RBX6DD18044AFDB4A46912397FFDF59FE1C">
+		<Item class="ModuleScript" referent="RBX60D8897B67B846998C576E24946FABCB">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<ProtectedString name="Source"><![CDATA[--[=[
@@ -1149,6 +1311,7 @@ G2L["9"]["TextColor3"] = Color3.fromRGB(255, 255, 255);
 G2L["9"]["BackgroundColor3"] = Color3.fromRGB(129, 129, 129);
 G2L["9"]["FontFace"] = Font.new([[rbxasset://fonts/families/SourceSansPro.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal);
 G2L["9"]["BackgroundTransparency"] = 0.65;
+G2L["9"]["RichText"] = true;
 G2L["9"]["Size"] = UDim2.new(1, -35, 0, 35);
 G2L["9"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
 G2L["9"]["Name"] = [[ComponentName]];
@@ -1261,6 +1424,37 @@ return G2L["2"];]]></ProtectedString>
 				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
 				<bool name="DefinesCapabilities">false</bool>
 				<string name="Name">ConstructGUI</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<BinaryString name="Tags"></BinaryString>
+			</Properties>
+		</Item>
+		<Item class="ModuleScript" referent="RBXE55808A812F145F3973317C639488E1B">
+			<Properties>
+				<Content name="LinkedSource"><null></null></Content>
+				<ProtectedString name="Source"><![CDATA[local typeConversion = {
+	[1] = "number",
+	[2] = "number",
+	[3] = "Expression",
+	[4] = "string",
+	[5] = "string",
+	[6] = "number",
+	[7] = "Expression -> number",
+	[8] = "boolean",
+	[9] = "Color",
+	[10] = "string",
+	[11] = "Vector3",
+	[12] = "number",
+	[13] = "boolean",
+	[14] = "CFrame",
+}
+
+return typeConversion
+]]></ProtectedString>
+				<string name="ScriptGuid">{3F1F9902-4367-4E24-A8F5-9AE5EA5F0980}</string>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">TypeConversion</string>
 				<int64 name="SourceAssetId">-1</int64>
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
