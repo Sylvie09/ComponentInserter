@@ -1,18 +1,22 @@
 <roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
 	<External>null</External>
 	<External>nil</External>
-	<Item class="Folder" referent="RBXD598097049CB49C7AFE7C62D884306CA">
+	<Item class="Folder" referent="RBX7D5444DD825A4C27A5BC265114E79AAF">
 		<Properties>
 			<BinaryString name="AttributesSerialize"></BinaryString>
 			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
 			<bool name="DefinesCapabilities">false</bool>
 			<string name="Name">ComponentInserter</string>
 			<int64 name="SourceAssetId">-1</int64>
-			<BinaryString name="Tags"></BinaryString>
+			<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 		</Properties>
-		<Item class="Script" referent="RBX15983C945E314A74BBD5C7B43257D790">
+		<Item class="Script" referent="RBX0C7D29EE06E840F98DA7AB668610A24E">
 			<Properties>
-				<ProtectedString name="Source"><![CDATA[local componentInserterVersion = "1.4.1"
+				<ProtectedString name="Source"><![CDATA[local componentInserterVersion = "1.5.0"
+
+-- This code is an absolute mess I should make some kind of framework for plugins if I decide to make another plugin
+
+print("Component Inserter: Starting plugin...")
 
 local selection = game:GetService("Selection")
 local httpService = game:GetService("HttpService")
@@ -22,13 +26,21 @@ local components = require(root.Components)
 local attributeValues = require(root.AttributeValues)
 local typeConversion = require(root.TypeConversion)
 local apiConsumer = require(root.APIConsumer)
+local pluginSettings = require(root.PluginSettings)
+local googStrings = require(root.GoogStrings)
 
-local mainFrame = root.MainFrame
-local componentTemplate = mainFrame.ComponentTemplate
-local componentList = mainFrame.ComponentList
-local searchBar = mainFrame.Search
-local helpHeader = mainFrame.HelpHeader
-local helpScroll = mainFrame.HelpScroll
+local showingSettings = false
+local pendingSettings = {}
+
+local mainFrame: Frame = root.MainFrame
+local componentTemplate: Frame = mainFrame.ComponentTemplate
+local componentList: ScrollingFrame = mainFrame.ComponentList
+local searchHeader: Frame = mainFrame.SearchHeader
+local searchBar: TextBox = searchHeader.Search
+local settingsButton: TextButton = searchHeader.SettingsButton
+local helpHeader: Frame = mainFrame.HelpHeader
+local helpScroll: ScrollingFrame = mainFrame.HelpScroll
+local settingTemplate: Frame = mainFrame.SettingTemplate
 
 local attributeBlacklist = {
 	EnemyWeaponsWave1 = true,
@@ -42,36 +54,7 @@ local attributeBlacklist = {
 	EnemyWeaponsWave9 = true,
 }
 
-local api = apiConsumer.WaitForAPI(20)
-local apiSuccess = api ~= nil
-
-if not apiSuccess then
-	warn("Component Inserter: Failed to start, could not get serializer API")
-else
-	print("Component Inserter: Plugin successfully started")
-end
-
-local attributesMap = if apiSuccess then api.GetAttributesMap() else nil
-
-local function CheckForUpdate()
-	local success, returnData = pcall(function()
-		return httpService:GetAsync("https://raw.githubusercontent.com/Sylvie09/ComponentInserter/refs/heads/main/src/Main.lua")
-	end)
-	
-	if not success then
-		warn("Component Inserter: Failed to check GitHub plugin version; error: " .. returnData)
-		return
-	end
-	
-	if (not string.find(returnData, "componentInserterVersion")) or string.find(returnData, 'componentInserterVersion = "' .. componentInserterVersion .. '"') then
-		print("Component Inserter: Installed plugin is up to date")
-		return
-	end
-	
-	warn("Component Inserter: Installed plugin does not match version on GitHub; be sure to download the most recent version of the plugin for new fixes and additions")
-end
-
-CheckForUpdate()
+local NEW_VERSION_TEXT = "Installed Component Inserter plugin does not match version on GitHub; be sure to download the most recent version of the plugin for new fixes and additions"
 
 local toolbar = plugin:CreateToolbar("Component Inserter")
 local pluginButton = toolbar:CreateButton(
@@ -99,6 +82,37 @@ widget.Title = "Component Inserter"
 
 script.Parent.MainFrame.Parent = widget
 
+local api = apiConsumer.WaitForAPI(10)
+local apiSuccess = api ~= nil
+
+if not apiSuccess then
+	warn("Component Inserter: Could not get Serializer API")
+else
+	print("Component Inserter: Successfully got Serializer API")
+end
+
+local attributesMap = if apiSuccess then api.GetAttributesMap() else {}
+
+local function CheckForUpdate()
+	local success, returnData = pcall(function()
+		return httpService:GetAsync("https://raw.githubusercontent.com/Sylvie09/ComponentInserter/refs/heads/main/src/Main.lua")
+	end)
+	
+	if not success then
+		warn("Component Inserter: Failed to check GitHub plugin version; error: " .. returnData)
+		return
+	end
+	
+	if (not string.find(returnData, "componentInserterVersion")) or string.find(returnData, 'componentInserterVersion = "' .. componentInserterVersion .. '"') then
+		print("Component Inserter: Installed plugin is up to date")
+		return
+	end
+	
+	warn("Component Inserter: " .. NEW_VERSION_TEXT)
+end
+
+coroutine.resume(coroutine.create(CheckForUpdate))
+
 local function InvertColor(color: Color3)
 	return Color3.new(1 - color.R, 1 - color.G, 1 - color.B)
 end
@@ -117,7 +131,7 @@ local function InvertTheme()
 end
 
 local function ShowMain(show: boolean)
-	searchBar.Visible = show
+	searchHeader.Visible = show
 	componentList.Visible = show
 	helpHeader.Visible = not show
 	helpScroll.Visible = not show
@@ -131,14 +145,14 @@ local function GetComponentAttributes(stateComponent: string)
 		for i, v in pairs(attributesMap[stateComponent]) do
 			if attributeBlacklist[i] then continue end
 			
-			if v[2] ~= nil then
+			currentValue = attributeValues[typeConversion[v[1]]]
+			
+			if pluginSettings.CurrentSettings.UseSerializerDefaults == "UseSerializer" and v[2] ~= nil then
 				if (typeConversion[v[1]] == "Expression -> number") or (typeConversion[v[1]] == "Expression" and typeof(v[2]) == "number") then
-					currentValue = tostring(v[2])
+						currentValue = tostring(v[2])
 				else
 					currentValue = v[2]
 				end
-			else
-				currentValue = attributeValues[typeConversion[v[1]]]
 			end
 			
 			returnTable[i] = {
@@ -176,7 +190,7 @@ end
 
 local function InsertStateComponent(stateComponent: string)
 	if not components[stateComponent] and not attributesMap[stateComponent] then
-		warn("Component Inserter: Attempted to insert StateComponent with invalid name; if you see this warning, please contact Sylvie09")
+		warn("Component Inserter: Attempted to insert StateComponent with invalid name; if you see this warning, please contact the plugin creator")
 		return
 	end
 
@@ -198,12 +212,17 @@ local function InsertStateComponent(stateComponent: string)
 
 	local newComponent = Instance.new("BoolValue")
 	newComponent.Name = stateComponent
+	if pluginSettings.CurrentSettings.GoogMode == "Yes" then
+		newComponent.Name = googStrings.GetString("Component")
+	end
 	newComponent:SetAttribute("Type", stateComponent)
 	
 	local newParent = stateComponentsFolder
+	local stateComponentsPreProcess = debugMission:FindFirstChild("StateComponentsPreProcess")
+	local stateComponentTemplates = debugMission:FindFirstChild("StateComponentTemplates")
 	local currentSelection = selection:Get()
 	
-	if #currentSelection == 1 and currentSelection[1]:IsDescendantOf(stateComponentsFolder) then
+	if #currentSelection == 1 and (currentSelection[1]:IsDescendantOf(stateComponentsFolder) or currentSelection[1] == stateComponentsPreProcess or currentSelection[1] == stateComponentTemplates or (stateComponentsPreProcess and currentSelection[1]:IsDescendantOf(stateComponentsPreProcess)) or (stateComponentTemplates and currentSelection[1]:IsDescendantOf(stateComponentTemplates))) then
 		if currentSelection[1]:IsA("Folder") then
 			newParent = currentSelection[1]
 		else
@@ -212,10 +231,22 @@ local function InsertStateComponent(stateComponent: string)
 	end
 	
 	newComponent.Parent = newParent
+	
+	local attributeTable = GetComponentAttributes(stateComponent)
+	local currentAttributeUnserialized
+	local anyAttributeUnserialized = false
 
 	for attribute, properties in pairs(GetComponentAttributes(stateComponent)) do
 		if properties.NoInsert then continue end
+		currentAttributeUnserialized = apiSuccess and ((not attributesMap[stateComponent]) or ((not attributesMap[stateComponent][attribute]) and (not attributeTable[attribute]["IgnoreUnserialized"])))
+		if (pluginSettings.CurrentSettings.HandleUnserialized == "NoInsert" or pluginSettings.CurrentSettings.HandleUnserialized == "NoShow") and currentAttributeUnserialized then continue end
+		if (pluginSettings.CurrentSettings.InsertNilAttributes == "NoInsert" or pluginSettings.CurrentSettings.InsertNilAttributes == "NoShow") and (currentAttributeUnserialized or (apiSuccess and attributesMap[stateComponent][attribute][2] == nil)) then continue end
+		anyAttributeUnserialized = anyAttributeUnserialized or currentAttributeUnserialized
 		newComponent:SetAttribute(attribute, properties.Value)
+	end
+	
+	if pluginSettings.CurrentSettings.HandleUnserialized == "Bypass" and anyAttributeUnserialized then
+		newComponent:SetAttribute("IKnowWhatImDoingDoNotValidate", true)
 	end
 
 	selection:Set({newComponent})
@@ -228,13 +259,19 @@ function LoadComponentHelp(stateComponent: string)
 	end
 
 	helpHeader.ComponentTitle.Text = stateComponent
+	if pluginSettings.CurrentSettings.GoogMode == "Yes" then
+		helpHeader.ComponentTitle.Text = googStrings.GetString("Component")
+	end
 
 	local componentTable = components[stateComponent]
 	local attributeTable = GetComponentAttributes(stateComponent)
 
 	local finalText = componentTable.HelpText
+	if pluginSettings.CurrentSettings.GoogMode == "Yes" then
+		finalText = googStrings.GetString("ComponentDesc")
+	end
 	
-	if not attributesMap[stateComponent] then
+	if apiSuccess and not attributesMap[stateComponent] then
 		finalText ..= '\n\n<b><font color="#FF7800">This component is not supported by the currently installed serializer and will not be properly exported with the mission. Make sure your serializer is the most recent version</font></b>'
 	end
 
@@ -260,25 +297,37 @@ function LoadComponentHelp(stateComponent: string)
 	
 	local attributeType
 	local attributeInfo
+	local attributeName
 	local unserializedAttribute = false
 	local currentAttributeUnserialized = false
 	
 	for i, v in ipairs(attributeKeys) do
-		attributeType = attributeTable[v]["Type"] or "Unknown"
-		attributeInfo = attributeTable[v]["Info"] or "This attribute is unknown to the currently installed version of Component Inserter"
+		currentAttributeUnserialized = apiSuccess and ((not attributesMap[stateComponent]) or (not attributesMap[stateComponent][v])) and not attributeTable[v]["IgnoreUnserialized"]
 		
-		currentAttributeUnserialized = ((not attributesMap[stateComponent]) or (not attributesMap[stateComponent][v])) and not attributeTable[v]["IgnoreUnserialized"]
+		if pluginSettings.CurrentSettings.HandleUnserialized == "NoShow" and currentAttributeUnserialized then continue end
+		
+		if apiSuccess and pluginSettings.CurrentSettings.InsertNilAttributes == "NoShow" and attributesMap[stateComponent][v][2] == nil then continue end
+		
 		unserializedAttribute = unserializedAttribute or currentAttributeUnserialized
 		
+		attributeType = attributeTable[v]["Type"] or "Unknown"
+		attributeInfo = attributeTable[v]["Info"] or "This attribute is unknown to the currently installed version of Component Inserter"
+		if pluginSettings.CurrentSettings.GoogMode == "Yes" then
+			attributeType = googStrings.GetString("Type")
+			attributeInfo = googStrings.GetString("AttributeDesc")
+		end
+		
+		attributeName = if pluginSettings.CurrentSettings.GoogMode == "Yes" then googStrings.GetString("Attribute") else v
+		
 		if currentAttributeUnserialized then
-			finalText ..= '\n\n<b><font color="#FF7800">' .. v .. '*</font> [' .. attributeType .. ']:</b> ' .. attributeInfo
+			finalText ..= '\n\n<b><font color="#FF7800">' .. attributeName .. '*</font> [' .. attributeType .. ']:</b> ' .. attributeInfo
 		else
-			finalText ..= "\n\n<b>" .. v .. " [" .. attributeType .. "]:</b> " .. attributeInfo
+			finalText ..= "\n\n<b>" .. attributeName .. " [" .. attributeType .. "]:</b> " .. attributeInfo
 		end
 	end
 	
 	if unserializedAttribute then
-		finalText ..= '\n\n<b><font color="#FF7800">*Some attributes of this component are not supported by the currently installed serializer and will not be properly exported with the mission. Make sure your serializer is the most recent version</font></b>'
+		finalText ..= '\n\n<b><font color="#FF7800">*Some attributes of this component are not supported by the currently installed serializer' .. ((pluginSettings.CurrentSettings.HandleUnserialized == "NoInsert" and ' and will not be inserted') or (pluginSettings.CurrentSettings.HandleUnserialized ~= "Bypass" and ' and will not be properly exported with the mission') or ('')) .. '. Make sure your serializer is the most recent version</font></b>'
 	end
 
 	helpScroll.TextLabel.Text = finalText
@@ -291,15 +340,23 @@ end
 local function PopulateComponentList()
 	local newComponentFrame
 	componentList.CanvasSize = UDim2.new(0, 0, 0, 0)
+	componentList.CanvasPosition = Vector2.zero
 
 	for i, v in pairs(components) do
+		if apiSuccess and attributesMap[i] == nil and pluginSettings.CurrentSettings.HandleUnserialized == "NoShow" then continue end
+		
 		newComponentFrame = componentTemplate:Clone()
-
+		
+		local displayName = i
+		if pluginSettings.CurrentSettings.GoogMode == "Yes" then
+			displayName = googStrings.GetString("Component")
+		end
+		
 		newComponentFrame.Name = i
-		if attributesMap[i] then
-			newComponentFrame.ComponentName.Text = i
+		if attributesMap[i] or not apiSuccess then
+			newComponentFrame.ComponentName.Text = displayName
 		else
-			newComponentFrame.ComponentName.Text = '<font color="#FF7800">' .. i .. '</font>'
+			newComponentFrame.ComponentName.Text = '<font color="#FF7800">' .. displayName .. '</font>'
 		end
 		newComponentFrame.Visible = true
 
@@ -315,6 +372,8 @@ local function PopulateComponentList()
 
 		componentList.CanvasSize += UDim2.new(0, 0, 0, 37)
 	end
+	
+	searchBar.Text = ""
 end
 
 local function ClearComponentList()
@@ -322,6 +381,90 @@ local function ClearComponentList()
 		if v:IsA("Frame") then v:Destroy() end
 	end
 end
+
+function UpdateCurrentSettings()
+	local internalSetting
+	for i, v in ipairs(pluginSettings.GetOptionsNames()) do
+		pluginSettings.CurrentSettings[v] = plugin:GetSetting(v) or pluginSettings.GetOptionInfo(v).Default
+	end
+end
+
+function UpdateInternalSettings()
+	for i, v in pairs(pluginSettings.CurrentSettings) do
+		plugin:SetSetting(i, v)
+	end
+end
+
+local function ShowSettings(show: boolean)
+	helpHeader.Visible = show
+	searchHeader.Visible = not show
+	showingSettings = show
+
+	ClearComponentList()
+	
+	componentList.UIListLayout.Padding = UDim.new(0, (show and 5) or 2)
+	componentList.UIListLayout.SortOrder = (show and Enum.SortOrder.LayoutOrder) or Enum.SortOrder.Name
+	
+	if not show then
+		for i, v in pairs(pendingSettings) do
+			pluginSettings.CurrentSettings[i] = v
+		end
+		UpdateInternalSettings()
+		PopulateComponentList()
+		return
+	end
+	
+	helpHeader.ComponentTitle.Text = "Settings"
+	
+	for i, v in pairs(pluginSettings.CurrentSettings) do
+		pendingSettings[i] = v
+	end
+	
+	componentList.CanvasSize = UDim2.new(0, 0, 0, 0)
+	componentList.CanvasPosition = Vector2.zero
+	
+	for settingNum, setting in ipairs(pluginSettings.OptionsList) do
+		local newSetting: Frame = settingTemplate:Clone()
+		newSetting.Parent = componentList
+		newSetting.Name = setting.Name
+		newSetting.LayoutOrder = settingNum
+		
+		newSetting.SettingName.Text = setting.Title
+		
+		local buttonFrame: Frame = newSetting.ButtonFrame
+		local buttonTemplate: TextButton = buttonFrame.SettingButton
+		for optionNum, option in ipairs(setting.Options) do
+			local newButton: TextButton = buttonTemplate:Clone()
+			newButton.Parent = buttonFrame
+			newButton.Name = option.Name
+			newButton.Text = option.Title
+			newButton.Size = UDim2.new(1 / #setting.Options, 0, 1, 0)
+			newButton.Interactable = pendingSettings[setting.Name] ~= option.Name
+			newButton.AutoButtonColor = pendingSettings[setting.Name] ~= option.Name
+			newButton.BackgroundTransparency = pendingSettings[setting.Name] ~= option.Name and 0.65 or 0.9
+			
+			newButton.Activated:Connect(function()
+				buttonFrame[pendingSettings[setting.Name]].BackgroundTransparency = 0.65
+				buttonFrame[pendingSettings[setting.Name]].Interactable = true
+				buttonFrame[pendingSettings[setting.Name]].AutoButtonColor = true
+				
+				newButton.BackgroundTransparency = 0.9
+				newButton.Interactable = false
+				newButton.AutoButtonColor = false
+				
+				pendingSettings[setting.Name] = newButton.Name
+			end)
+			
+			newButton.Visible = true
+		end
+		
+		newSetting.Visible = true
+		
+		componentList.CanvasSize += UDim2.new(0, 0, 0, 115)
+	end
+end
+
+UpdateCurrentSettings()
 
 PopulateComponentList()
 
@@ -344,7 +487,15 @@ searchBar.Changed:Connect(function(property: string)
 end)
 
 helpHeader.BackButton.Activated:Connect(function()
-	ShowMain(true)
+	if not showingSettings then
+		ShowMain(true)
+	else
+		ShowSettings(false)
+	end
+end)
+
+settingsButton.Activated:Connect(function()
+	ShowSettings(true)
 end)
 
 pluginButton.Click:Connect(function()
@@ -361,17 +512,17 @@ end)
 ]]></ProtectedString>
 				<bool name="Disabled">false</bool>
 				<Content name="LinkedSource"><null></null></Content>
-				<token name="RunContext">0</token>
+				<token name="RunContext">3</token>
 				<string name="ScriptGuid">{0CC1B683-5635-4506-A50B-778171CC7695}</string>
 				<BinaryString name="AttributesSerialize"></BinaryString>
 				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
 				<bool name="DefinesCapabilities">false</bool>
 				<string name="Name">Main</string>
 				<int64 name="SourceAssetId">-1</int64>
-				<BinaryString name="Tags"></BinaryString>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 			</Properties>
 		</Item>
-		<Item class="ModuleScript" referent="RBX1B370A5775EF49E599BD2E67C8B9E218">
+		<Item class="ModuleScript" referent="RBX2343C6AEC1F64E928C87D229221C62E0">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<ProtectedString name="Source"><![CDATA[--[[
@@ -585,10 +736,10 @@ return APIConsumer]]></ProtectedString>
 				<bool name="DefinesCapabilities">false</bool>
 				<string name="Name">APIConsumer</string>
 				<int64 name="SourceAssetId">-1</int64>
-				<BinaryString name="Tags"></BinaryString>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 			</Properties>
 		</Item>
-		<Item class="ModuleScript" referent="RBXD81DCFE385A64ECB8D86340EEFA50D60">
+		<Item class="ModuleScript" referent="RBX832BA2DAF285400B87092DE3027DABE6">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<ProtectedString name="Source"><![CDATA[local attributeValues = {
@@ -603,7 +754,7 @@ return APIConsumer]]></ProtectedString>
 	["Expression -> CustomString"] = "",
 	CustomBehavior = "",
 	StateScript = "",
-	Color = Color3.new(0, 0, 0),
+	Color = Color3.new(1, 1, 1),
 	Vector3 = Vector3.new(0, 0, 0),
 	CFrame = CFrame.new(),
 }
@@ -616,10 +767,10 @@ return attributeValues
 				<bool name="DefinesCapabilities">false</bool>
 				<string name="Name">AttributeValues</string>
 				<int64 name="SourceAssetId">-1</int64>
-				<BinaryString name="Tags"></BinaryString>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 			</Properties>
 		</Item>
-		<Item class="ModuleScript" referent="RBX77CDEA3073D243C5A17AEBD8CB093831">
+		<Item class="ModuleScript" referent="RBX6A392A0C10C74092967CCE9909E8919F">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<ProtectedString name="Source"><![CDATA[local template = {
@@ -667,7 +818,7 @@ local components = {
 		HelpText = "Fades out the player's view to a dark screen when a specified condition is true",
 		Attributes = {
 			Active = {"Expression -> boolean", "When true, the player's screen is covered in darkness"},
-			Speed = {"number", "The amount of time that it takes, in seconds, for the dark screen to fade in and out"},
+			Speed = {"number", "The multiplier for the amount of time it takes for the screen to fade"},
 		},
 	},
 	BodyAltTrigger = {
@@ -736,7 +887,7 @@ local components = {
 			CustomPantsId = {"string", "The template ID of custom pants to give to the spawned units"},
 			CustomShirtId = {"string", "The template ID of a custom shirt to give to the spawned units"},
 			EnemyType = {"string", "Defines the type (outfit and base stats) of enemies spawned, such as Swat, Palisade, Criminal, and HalcyonOperator"},
-			EnemyWeapons = {"string", "The pool of weapons enemies can spawn with, with each weapon name being separated by a bar (|); use duplicate entries to increase the chances of specific weapons being spawned"},
+			EnemyWeapons = {"string", "The pool of weapons enemies can spawn with, with each weapon name being separated by a pipe (|); use duplicate entries to increase the chances of specific weapons being spawned"},
 			["EnemyWeaponsWave(1-9)"] = {"string", "A new attribute can be set for numbers 1 through 9; has the same formatting as EnemyWeapons, and overrides EnemyWeapons for specific waves", true, true},
 			FallbackCondition = {"Expression -> boolean", "When true, units spawned by this CombatSpawner will retreat to a CombatRetreatPoint prop and despawn"},
 			FlowMap = {"string", "The name of the CombatFlowMap to tie enemies to"},
@@ -815,7 +966,7 @@ local components = {
 			CustomPantsId = {"string", "The template ID of custom pants to give to the spawned units"},
 			CustomShirtId = {"string", "The template ID of a custom shirt to give to the spawned units"},
 			EnemyType = {"string", "Defines the type (outfit) of enemies spawned, such as Swat, Palisade, Criminal, and HalcyonOperator"},
-			EnemyWeapons = {"string", "The pool of weapons enemies can spawn with, with each weapon name being separated by a bar (|); use duplicate entries to increase the chances of specific weapons being spawned"},
+			EnemyWeapons = {"string", "The pool of weapons enemies can spawn with, with each weapon name being separated by a pipe (|); use duplicate entries to increase the chances of specific weapons being spawned"},
 			["EnemyWeaponsWave(1-9)"] = {"string", "A new attribute can be set for numbers 1 through 9; has the same formatting as EnemyWeapons, and overrides EnemyWeapons for specific waves", true, true},
 			FillFrequency = {"number", "The amount of time between unit spawns, in seconds"},
 			FocusPoint = {"Vector3", "Unknown (if you can figure it out, contact the plugin maker to let them know!)", true},
@@ -882,7 +1033,7 @@ local components = {
 		HelpText = "Displays a paper file with custom text on the player's screen when a specific condition is met",
 		Attributes = {
 			Font = {"string", "The name of the font to use for the text on the file"},
-			Lines = {"string", "A list of CustomStrings to be displayed on the file in a randomized order, separated by bars (|)"},
+			Lines = {"string", "A list of CustomStrings to be displayed on the file in a randomized order, separated by pipes (|)"},
 			NoExtraPaper = {"boolean", "If true, extra papers will not be displayed behind the paper file on-screen"},
 			NoFolder = {"boolean", "If true, a folder will not be displayed behind the paper file on-screen"},
 			ShowTape = {"boolean", "If true, a strip of tape will be shown with the paper file on-screen"},
@@ -1161,9 +1312,12 @@ local components = {
 	StateScript = {
 		HelpText = "Executes custom code within the limits of the StateScript language",
 		Attributes = {
-			Run = {"Expression -> boolean", "When true, this StateScript will begin running, and will stop when this value is false; generally shouldn't be used alongside the TriggerEvent attribute"},
-			ScriptSource = {"StateScript", "The StateScript code to run; for more information on StateScripts, read the documentation or wiki page"},
-			TriggerEvent = {"Expression -> boolean", "When updated with a non-zero value, a new instance of the StateScript will be executed; generally shouldn't be used alongside the Run attribute"},
+			DebugLineVariable = {"string", "The variable to set to the line number of the most recently executed line of code for this StateScript; used for debugging", true, true},
+			DebugLogId = {"string", "If set to a non-empty value, every line of this Statescript run will be sent in the F9 console in-game post-pre-processing, with square brackets around arguments removed, and colons put between arguments; used for debugging", true, true},
+			DebugVariable = {"string", "The variable to set to the content of the most recently executed line of code for this StateScript; used for debugging", true, true},
+			Run = {"Expression -> boolean", "When true, this StateScript will begin running, and will stop when this value is false; generally shouldn't be used alongside the TriggerEvent attribute", false, true},
+			ScriptSource = {"StateScript", "The StateScript code to run; for more information on StateScripts, read the documentation, wiki page, or consult the official sample model", false, true},
+			TriggerEvent = {"Expression -> boolean", "When updated with a non-zero value, a new instance of the StateScript will be executed; generally shouldn't be used alongside the Run attribute", false, true},
 		},
 	},
 	StateUpdate = {
@@ -1195,8 +1349,8 @@ local components = {
 			Prefix0 = {"string", "The first variable prefix to use"},
 			Prefix1 = {"string", "The second variable prefix to use"},
 			Seed = {"Expression -> number", "The seed number to use for randomization"},
-			Set0 = {"string", "The first set of values to use, with each value separated by a bar (|)"},
-			Set1 = {"string", "The second set of values to use, with each value separated by a bar (|)"},
+			Set0 = {"string", "The first set of values to use, with each value separated by a pipe (|)"},
+			Set1 = {"string", "The second set of values to use, with each value separated by a pipe (|)"},
 		},
 	},
 }
@@ -1209,10 +1363,10 @@ return components
 				<bool name="DefinesCapabilities">false</bool>
 				<string name="Name">Components</string>
 				<int64 name="SourceAssetId">-1</int64>
-				<BinaryString name="Tags"></BinaryString>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 			</Properties>
 		</Item>
-		<Item class="ModuleScript" referent="RBX86A4363614DD4E9EA7E6CAD0562304EC">
+		<Item class="ModuleScript" referent="RBX4253A749CB884902A7424EDACD056857">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<ProtectedString name="Source"><![CDATA[--[=[
@@ -1224,9 +1378,8 @@ return components
  Y888P  ~Y8888P' Y888888P      888888D      Y88888P ~Y8888P' YP   YP  CONVERTER 
 ]=]
 
--- Instances: 14 | Scripts: 0 | Modules: 0 | Tags: 0
+-- Instances: 22 | Scripts: 0 | Modules: 0 | Tags: 0
 local G2L = {};
-
 
 -- StarterGui.ScreenGui.MainFrame
 G2L["2"] = Instance.new("Frame", script.Parent);
@@ -1244,7 +1397,7 @@ G2L["3"]["TextWrapped"] = true;
 G2L["3"]["BorderSizePixel"] = 0;
 G2L["3"]["TextSize"] = 14;
 G2L["3"]["TextScaled"] = true;
-G2L["3"]["BackgroundColor3"] = Color3.fromRGB(26, 27, 32);
+G2L["3"]["BackgroundColor3"] = Color3.fromRGB(27, 28, 33);
 G2L["3"]["FontFace"] = Font.new([[rbxasset://fonts/families/SourceSansPro.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal);
 G2L["3"]["TextColor3"] = Color3.fromRGB(255, 255, 255);
 G2L["3"]["Size"] = UDim2.new(1, 0, 0, 25);
@@ -1254,174 +1407,285 @@ G2L["3"]["LayoutOrder"] = 1;
 G2L["3"]["Name"] = [[Title]];
 
 
--- StarterGui.ScreenGui.MainFrame.Search
-G2L["4"] = Instance.new("TextBox", G2L["2"]);
-G2L["4"]["Name"] = [[Search]];
-G2L["4"]["BorderSizePixel"] = 0;
-G2L["4"]["TextWrapped"] = true;
-G2L["4"]["TextSize"] = 14;
-G2L["4"]["TextColor3"] = Color3.fromRGB(255, 255, 255);
-G2L["4"]["TextScaled"] = true;
-G2L["4"]["BackgroundColor3"] = Color3.fromRGB(26, 27, 32);
-G2L["4"]["FontFace"] = Font.new([[rbxasset://fonts/families/SourceSansPro.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal);
-G2L["4"]["PlaceholderText"] = [[Search...]];
-G2L["4"]["Size"] = UDim2.new(1, 0, 0, 35);
-G2L["4"]["Position"] = UDim2.new(0, 0, 0, 30);
-G2L["4"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
-G2L["4"]["Text"] = [[]];
-G2L["4"]["LayoutOrder"] = 2;
-
-
 -- StarterGui.ScreenGui.MainFrame.UIListLayout
-G2L["5"] = Instance.new("UIListLayout", G2L["2"]);
-G2L["5"]["Padding"] = UDim.new(0, 5);
-G2L["5"]["SortOrder"] = Enum.SortOrder.LayoutOrder;
+G2L["4"] = Instance.new("UIListLayout", G2L["2"]);
+G2L["4"]["Padding"] = UDim.new(0, 5);
+G2L["4"]["SortOrder"] = Enum.SortOrder.LayoutOrder;
 
 
 -- StarterGui.ScreenGui.MainFrame.ComponentList
-G2L["6"] = Instance.new("ScrollingFrame", G2L["2"]);
-G2L["6"]["Active"] = true;
-G2L["6"]["BorderSizePixel"] = 0;
-G2L["6"]["Name"] = [[ComponentList]];
-G2L["6"]["BackgroundColor3"] = Color3.fromRGB(255, 255, 255);
-G2L["6"]["Size"] = UDim2.new(1, 0, 1, -70);
-G2L["6"]["ScrollBarImageColor3"] = Color3.fromRGB(0, 0, 0);
-G2L["6"]["Position"] = UDim2.new(0.08564, 0, 0.07949, 0);
-G2L["6"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
-G2L["6"]["ScrollBarThickness"] = 10;
-G2L["6"]["LayoutOrder"] = 3;
-G2L["6"]["BackgroundTransparency"] = 0.98;
+G2L["5"] = Instance.new("ScrollingFrame", G2L["2"]);
+G2L["5"]["Active"] = true;
+G2L["5"]["BorderSizePixel"] = 0;
+G2L["5"]["Name"] = [[ComponentList]];
+G2L["5"]["BackgroundColor3"] = Color3.fromRGB(255, 255, 255);
+G2L["5"]["Size"] = UDim2.new(1, 0, 1, -70);
+G2L["5"]["ScrollBarImageColor3"] = Color3.fromRGB(0, 0, 0);
+G2L["5"]["Position"] = UDim2.new(0.08564, 0, 0.07949, 0);
+G2L["5"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
+G2L["5"]["ScrollBarThickness"] = 10;
+G2L["5"]["LayoutOrder"] = 3;
+G2L["5"]["BackgroundTransparency"] = 0.98;
 
 
 -- StarterGui.ScreenGui.MainFrame.ComponentList.UIListLayout
-G2L["7"] = Instance.new("UIListLayout", G2L["6"]);
-G2L["7"]["Padding"] = UDim.new(0, 2);
+G2L["6"] = Instance.new("UIListLayout", G2L["5"]);
+G2L["6"]["Padding"] = UDim.new(0, 2);
 
 
 -- StarterGui.ScreenGui.MainFrame.ComponentTemplate
-G2L["8"] = Instance.new("Frame", G2L["2"]);
-G2L["8"]["Visible"] = false;
-G2L["8"]["BorderSizePixel"] = 0;
-G2L["8"]["BackgroundColor3"] = Color3.fromRGB(33, 35, 41);
-G2L["8"]["Size"] = UDim2.new(1, -10, 0, 35);
-G2L["8"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
-G2L["8"]["Name"] = [[ComponentTemplate]];
+G2L["7"] = Instance.new("Frame", G2L["2"]);
+G2L["7"]["Visible"] = false;
+G2L["7"]["BorderSizePixel"] = 0;
+G2L["7"]["BackgroundColor3"] = Color3.fromRGB(34, 36, 42);
+G2L["7"]["Size"] = UDim2.new(1, -10, 0, 35);
+G2L["7"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
+G2L["7"]["Name"] = [[ComponentTemplate]];
 
 
 -- StarterGui.ScreenGui.MainFrame.ComponentTemplate.ComponentName
-G2L["9"] = Instance.new("TextButton", G2L["8"]);
+G2L["8"] = Instance.new("TextButton", G2L["7"]);
+G2L["8"]["TextWrapped"] = true;
+G2L["8"]["RichText"] = true;
+G2L["8"]["BorderSizePixel"] = 0;
+G2L["8"]["TextSize"] = 14;
+G2L["8"]["TextScaled"] = true;
+G2L["8"]["TextColor3"] = Color3.fromRGB(255, 255, 255);
+G2L["8"]["BackgroundColor3"] = Color3.fromRGB(130, 130, 130);
+G2L["8"]["FontFace"] = Font.new([[rbxasset://fonts/families/SourceSansPro.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal);
+G2L["8"]["BackgroundTransparency"] = 0.65;
+G2L["8"]["Size"] = UDim2.new(1, -35, 0, 35);
+G2L["8"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
+G2L["8"]["Name"] = [[ComponentName]];
+
+
+-- StarterGui.ScreenGui.MainFrame.ComponentTemplate.HelpButton
+G2L["9"] = Instance.new("TextButton", G2L["7"]);
 G2L["9"]["TextWrapped"] = true;
+G2L["9"]["TextStrokeTransparency"] = 0;
 G2L["9"]["BorderSizePixel"] = 0;
 G2L["9"]["TextSize"] = 14;
 G2L["9"]["TextScaled"] = true;
 G2L["9"]["TextColor3"] = Color3.fromRGB(255, 255, 255);
-G2L["9"]["BackgroundColor3"] = Color3.fromRGB(129, 129, 129);
+G2L["9"]["BackgroundColor3"] = Color3.fromRGB(162, 110, 231);
 G2L["9"]["FontFace"] = Font.new([[rbxasset://fonts/families/SourceSansPro.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal);
 G2L["9"]["BackgroundTransparency"] = 0.65;
-G2L["9"]["RichText"] = true;
-G2L["9"]["Size"] = UDim2.new(1, -35, 0, 35);
+G2L["9"]["Size"] = UDim2.new(0, 35, 1, 0);
 G2L["9"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
-G2L["9"]["Name"] = [[ComponentName]];
-
-
--- StarterGui.ScreenGui.MainFrame.ComponentTemplate.HelpButton
-G2L["a"] = Instance.new("TextButton", G2L["8"]);
-G2L["a"]["TextWrapped"] = true;
-G2L["a"]["TextStrokeTransparency"] = 0;
-G2L["a"]["BorderSizePixel"] = 0;
-G2L["a"]["TextSize"] = 14;
-G2L["a"]["TextScaled"] = true;
-G2L["a"]["TextColor3"] = Color3.fromRGB(255, 255, 255);
-G2L["a"]["BackgroundColor3"] = Color3.fromRGB(161, 109, 230);
-G2L["a"]["FontFace"] = Font.new([[rbxasset://fonts/families/SourceSansPro.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal);
-G2L["a"]["BackgroundTransparency"] = 0.65;
-G2L["a"]["Size"] = UDim2.new(0, 35, 1, 0);
-G2L["a"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
-G2L["a"]["Text"] = [[?]];
-G2L["a"]["Name"] = [[HelpButton]];
-G2L["a"]["Position"] = UDim2.new(1, -35, 0, 0);
+G2L["9"]["Text"] = [[?]];
+G2L["9"]["Name"] = [[HelpButton]];
+G2L["9"]["Position"] = UDim2.new(1, -35, 0, 0);
 
 
 -- StarterGui.ScreenGui.MainFrame.HelpHeader
-G2L["b"] = Instance.new("Frame", G2L["2"]);
-G2L["b"]["Visible"] = false;
-G2L["b"]["BorderSizePixel"] = 0;
-G2L["b"]["BackgroundColor3"] = Color3.fromRGB(255, 255, 255);
-G2L["b"]["Size"] = UDim2.new(1, 0, 0, 35);
-G2L["b"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
-G2L["b"]["Name"] = [[HelpHeader]];
-G2L["b"]["LayoutOrder"] = 2;
-G2L["b"]["BackgroundTransparency"] = 1;
+G2L["a"] = Instance.new("Frame", G2L["2"]);
+G2L["a"]["Visible"] = false;
+G2L["a"]["BorderSizePixel"] = 0;
+G2L["a"]["BackgroundColor3"] = Color3.fromRGB(255, 255, 255);
+G2L["a"]["Size"] = UDim2.new(1, 0, 0, 35);
+G2L["a"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
+G2L["a"]["Name"] = [[HelpHeader]];
+G2L["a"]["LayoutOrder"] = 2;
+G2L["a"]["BackgroundTransparency"] = 1;
 
 
 -- StarterGui.ScreenGui.MainFrame.HelpHeader.ComponentTitle
-G2L["c"] = Instance.new("TextLabel", G2L["b"]);
-G2L["c"]["TextWrapped"] = true;
-G2L["c"]["BorderSizePixel"] = 0;
-G2L["c"]["TextSize"] = 14;
-G2L["c"]["TextScaled"] = true;
-G2L["c"]["BackgroundColor3"] = Color3.fromRGB(26, 27, 32);
-G2L["c"]["FontFace"] = Font.new([[rbxasset://fonts/families/SourceSansPro.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal);
-G2L["c"]["TextColor3"] = Color3.fromRGB(255, 255, 255);
-G2L["c"]["Size"] = UDim2.new(1, -35, 1, 0);
-G2L["c"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
-G2L["c"]["Text"] = [[Component]];
-G2L["c"]["LayoutOrder"] = 1;
-G2L["c"]["Name"] = [[ComponentTitle]];
-G2L["c"]["Position"] = UDim2.new(0, 35, 0, 0);
+G2L["b"] = Instance.new("TextLabel", G2L["a"]);
+G2L["b"]["TextWrapped"] = true;
+G2L["b"]["BorderSizePixel"] = 0;
+G2L["b"]["TextSize"] = 14;
+G2L["b"]["TextScaled"] = true;
+G2L["b"]["BackgroundColor3"] = Color3.fromRGB(27, 28, 33);
+G2L["b"]["FontFace"] = Font.new([[rbxasset://fonts/families/SourceSansPro.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal);
+G2L["b"]["TextColor3"] = Color3.fromRGB(255, 255, 255);
+G2L["b"]["Size"] = UDim2.new(1, -70, 1, 0);
+G2L["b"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
+G2L["b"]["Text"] = [[Component]];
+G2L["b"]["LayoutOrder"] = 1;
+G2L["b"]["Name"] = [[ComponentTitle]];
+G2L["b"]["Position"] = UDim2.new(0, 35, 0, 0);
 
 
 -- StarterGui.ScreenGui.MainFrame.HelpHeader.BackButton
-G2L["d"] = Instance.new("TextButton", G2L["b"]);
-G2L["d"]["TextWrapped"] = true;
-G2L["d"]["TextStrokeTransparency"] = 0;
-G2L["d"]["BorderSizePixel"] = 0;
-G2L["d"]["TextSize"] = 14;
-G2L["d"]["TextScaled"] = true;
-G2L["d"]["TextColor3"] = Color3.fromRGB(255, 255, 255);
-G2L["d"]["BackgroundColor3"] = Color3.fromRGB(129, 129, 129);
-G2L["d"]["FontFace"] = Font.new([[rbxasset://fonts/families/SourceSansPro.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal);
-G2L["d"]["BackgroundTransparency"] = 0.65;
-G2L["d"]["Size"] = UDim2.new(0, 35, 0, 35);
-G2L["d"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
-G2L["d"]["Text"] = [[X]];
-G2L["d"]["Name"] = [[BackButton]];
+G2L["c"] = Instance.new("TextButton", G2L["a"]);
+G2L["c"]["TextWrapped"] = true;
+G2L["c"]["TextStrokeTransparency"] = 0;
+G2L["c"]["BorderSizePixel"] = 0;
+G2L["c"]["TextSize"] = 14;
+G2L["c"]["TextScaled"] = true;
+G2L["c"]["TextColor3"] = Color3.fromRGB(255, 255, 255);
+G2L["c"]["BackgroundColor3"] = Color3.fromRGB(130, 130, 130);
+G2L["c"]["FontFace"] = Font.new([[rbxasset://fonts/families/SourceSansPro.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal);
+G2L["c"]["BackgroundTransparency"] = 0.65;
+G2L["c"]["Size"] = UDim2.new(0, 35, 0, 35);
+G2L["c"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
+G2L["c"]["Text"] = [[X]];
+G2L["c"]["Name"] = [[BackButton]];
 
 
 -- StarterGui.ScreenGui.MainFrame.HelpScroll
-G2L["e"] = Instance.new("ScrollingFrame", G2L["2"]);
-G2L["e"]["Visible"] = false;
-G2L["e"]["Active"] = true;
-G2L["e"]["BorderSizePixel"] = 0;
-G2L["e"]["CanvasSize"] = UDim2.new(0, 0, 0, 1600);
-G2L["e"]["Name"] = [[HelpScroll]];
-G2L["e"]["BackgroundColor3"] = Color3.fromRGB(255, 255, 255);
-G2L["e"]["Size"] = UDim2.new(1, 0, 1, -70);
-G2L["e"]["ScrollBarImageColor3"] = Color3.fromRGB(0, 0, 0);
-G2L["e"]["Position"] = UDim2.new(0.08564, 0, 0.07949, 0);
-G2L["e"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
-G2L["e"]["ScrollBarThickness"] = 10;
-G2L["e"]["LayoutOrder"] = 3;
-G2L["e"]["BackgroundTransparency"] = 0.98;
+G2L["d"] = Instance.new("ScrollingFrame", G2L["2"]);
+G2L["d"]["Visible"] = false;
+G2L["d"]["Active"] = true;
+G2L["d"]["BorderSizePixel"] = 0;
+G2L["d"]["CanvasSize"] = UDim2.new(0, 0, 0, 1600);
+G2L["d"]["Name"] = [[HelpScroll]];
+G2L["d"]["BackgroundColor3"] = Color3.fromRGB(255, 255, 255);
+G2L["d"]["Size"] = UDim2.new(1, 0, 1, -70);
+G2L["d"]["ScrollBarImageColor3"] = Color3.fromRGB(0, 0, 0);
+G2L["d"]["Position"] = UDim2.new(0.08564, 0, 0.07949, 0);
+G2L["d"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
+G2L["d"]["ScrollBarThickness"] = 10;
+G2L["d"]["LayoutOrder"] = 3;
+G2L["d"]["BackgroundTransparency"] = 0.98;
 
 
 -- StarterGui.ScreenGui.MainFrame.HelpScroll.TextLabel
-G2L["f"] = Instance.new("TextLabel", G2L["e"]);
-G2L["f"]["TextWrapped"] = true;
-G2L["f"]["TextStrokeTransparency"] = 0.5;
+G2L["e"] = Instance.new("TextLabel", G2L["d"]);
+G2L["e"]["TextWrapped"] = true;
+G2L["e"]["TextStrokeTransparency"] = 0.5;
+G2L["e"]["BorderSizePixel"] = 0;
+G2L["e"]["TextSize"] = 18;
+G2L["e"]["TextXAlignment"] = Enum.TextXAlignment.Left;
+G2L["e"]["TextYAlignment"] = Enum.TextYAlignment.Top;
+G2L["e"]["BackgroundColor3"] = Color3.fromRGB(255, 255, 255);
+G2L["e"]["FontFace"] = Font.new([[rbxasset://fonts/families/SourceSansPro.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal);
+G2L["e"]["TextColor3"] = Color3.fromRGB(255, 255, 255);
+G2L["e"]["BackgroundTransparency"] = 1;
+G2L["e"]["RichText"] = true;
+G2L["e"]["AnchorPoint"] = Vector2.new(0.5, 0.5);
+G2L["e"]["Size"] = UDim2.new(1, -20, 1, 0);
+G2L["e"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
+G2L["e"]["Position"] = UDim2.new(0.5, 0, 0.5, 0);
+
+
+-- StarterGui.ScreenGui.MainFrame.SearchHeader
+G2L["f"] = Instance.new("Frame", G2L["2"]);
 G2L["f"]["BorderSizePixel"] = 0;
-G2L["f"]["TextSize"] = 18;
-G2L["f"]["TextXAlignment"] = Enum.TextXAlignment.Left;
-G2L["f"]["TextYAlignment"] = Enum.TextYAlignment.Top;
 G2L["f"]["BackgroundColor3"] = Color3.fromRGB(255, 255, 255);
-G2L["f"]["FontFace"] = Font.new([[rbxasset://fonts/families/SourceSansPro.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal);
-G2L["f"]["TextColor3"] = Color3.fromRGB(255, 255, 255);
-G2L["f"]["BackgroundTransparency"] = 1;
-G2L["f"]["RichText"] = true;
-G2L["f"]["AnchorPoint"] = Vector2.new(0.5, 0.5);
-G2L["f"]["Size"] = UDim2.new(1, -20, 1, 0);
+G2L["f"]["Size"] = UDim2.new(1, 0, 0, 35);
 G2L["f"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
-G2L["f"]["Position"] = UDim2.new(0.5, 0, 0.5, 0);
+G2L["f"]["Name"] = [[SearchHeader]];
+G2L["f"]["LayoutOrder"] = 2;
+G2L["f"]["BackgroundTransparency"] = 1;
+
+
+-- StarterGui.ScreenGui.MainFrame.SearchHeader.SettingsButton
+G2L["10"] = Instance.new("TextButton", G2L["f"]);
+G2L["10"]["TextWrapped"] = true;
+G2L["10"]["TextStrokeTransparency"] = 0;
+G2L["10"]["BorderSizePixel"] = 0;
+G2L["10"]["TextSize"] = 14;
+G2L["10"]["TextScaled"] = true;
+G2L["10"]["TextColor3"] = Color3.fromRGB(255, 255, 255);
+G2L["10"]["BackgroundColor3"] = Color3.fromRGB(130, 130, 130);
+G2L["10"]["FontFace"] = Font.new([[rbxasset://fonts/families/SourceSansPro.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal);
+G2L["10"]["BackgroundTransparency"] = 0.65;
+G2L["10"]["Size"] = UDim2.new(0, 35, 0, 35);
+G2L["10"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
+G2L["10"]["Text"] = [[+]];
+G2L["10"]["Name"] = [[SettingsButton]];
+
+
+-- StarterGui.ScreenGui.MainFrame.SearchHeader.Search
+G2L["11"] = Instance.new("TextBox", G2L["f"]);
+G2L["11"]["Name"] = [[Search]];
+G2L["11"]["BorderSizePixel"] = 0;
+G2L["11"]["TextWrapped"] = true;
+G2L["11"]["TextSize"] = 14;
+G2L["11"]["TextColor3"] = Color3.fromRGB(255, 255, 255);
+G2L["11"]["TextScaled"] = true;
+G2L["11"]["BackgroundColor3"] = Color3.fromRGB(27, 28, 33);
+G2L["11"]["FontFace"] = Font.new([[rbxasset://fonts/families/SourceSansPro.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal);
+G2L["11"]["PlaceholderText"] = [[Search...]];
+G2L["11"]["Size"] = UDim2.new(1, -70, 1, 0);
+G2L["11"]["Position"] = UDim2.new(0, 35, 0, 0);
+G2L["11"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
+G2L["11"]["Text"] = [[]];
+G2L["11"]["LayoutOrder"] = 2;
+
+
+-- StarterGui.ScreenGui.MainFrame.SettingTemplate
+G2L["12"] = Instance.new("Frame", G2L["2"]);
+G2L["12"]["Visible"] = false;
+G2L["12"]["BorderSizePixel"] = 0;
+G2L["12"]["BackgroundColor3"] = Color3.fromRGB(34, 36, 42);
+G2L["12"]["Size"] = UDim2.new(1, -10, 0, 110);
+G2L["12"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
+G2L["12"]["Name"] = [[SettingTemplate]];
+
+
+-- StarterGui.ScreenGui.MainFrame.SettingTemplate.SettingName
+G2L["13"] = Instance.new("TextButton", G2L["12"]);
+G2L["13"]["TextWrapped"] = true;
+G2L["13"]["Interactable"] = false;
+G2L["13"]["RichText"] = true;
+G2L["13"]["BorderSizePixel"] = 0;
+G2L["13"]["TextSize"] = 20;
+G2L["13"]["AutoButtonColor"] = false;
+G2L["13"]["TextScaled"] = true;
+G2L["13"]["TextColor3"] = Color3.fromRGB(255, 255, 255);
+G2L["13"]["BackgroundColor3"] = Color3.fromRGB(130, 130, 130);
+G2L["13"]["FontFace"] = Font.new([[rbxasset://fonts/families/SourceSansPro.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal);
+G2L["13"]["BackgroundTransparency"] = 0.65;
+G2L["13"]["Size"] = UDim2.new(1, 0, 0, 55);
+G2L["13"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
+G2L["13"]["Text"] = [[Setting]];
+G2L["13"]["Name"] = [[SettingName]];
+
+
+-- StarterGui.ScreenGui.MainFrame.SettingTemplate.ButtonFrame
+G2L["14"] = Instance.new("Frame", G2L["12"]);
+G2L["14"]["BorderSizePixel"] = 0;
+G2L["14"]["BackgroundColor3"] = Color3.fromRGB(34, 36, 42);
+G2L["14"]["Size"] = UDim2.new(1, 0, 0, 55);
+G2L["14"]["Position"] = UDim2.new(0, 0, 0, 55);
+G2L["14"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
+G2L["14"]["Name"] = [[ButtonFrame]];
+
+
+-- StarterGui.ScreenGui.MainFrame.SettingTemplate.ButtonFrame.SettingButton
+G2L["15"] = Instance.new("TextButton", G2L["14"]);
+G2L["15"]["Visible"] = false;
+G2L["15"]["TextWrapped"] = true;
+G2L["15"]["TextStrokeTransparency"] = 0;
+G2L["15"]["TextSize"] = 20;
+G2L["15"]["TextColor3"] = Color3.fromRGB(255, 255, 255);
+G2L["15"]["BackgroundColor3"] = Color3.fromRGB(162, 110, 231);
+G2L["15"]["FontFace"] = Font.new([[rbxasset://fonts/families/SourceSansPro.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal);
+G2L["15"]["BorderMode"] = Enum.BorderMode.Inset;
+G2L["15"]["BackgroundTransparency"] = 0.65;
+G2L["15"]["Size"] = UDim2.new(1, 0, 1, 0);
+G2L["15"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
+G2L["15"]["Text"] = [[Option]];
+G2L["15"]["Name"] = [[SettingButton]];
+
+
+-- StarterGui.ScreenGui.MainFrame.SettingTemplate.ButtonFrame.UIListLayout
+G2L["16"] = Instance.new("UIListLayout", G2L["14"]);
+G2L["16"]["HorizontalFlex"] = Enum.UIFlexAlignment.SpaceEvenly;
+G2L["16"]["SortOrder"] = Enum.SortOrder.LayoutOrder;
+G2L["16"]["FillDirection"] = Enum.FillDirection.Horizontal;
+
+-- StarterGui.ScreenGui.MainFrame.HelpHeader.UselessFiller
+G2L["17"] = Instance.new("Frame", G2L["a"]);
+G2L["17"]["BorderSizePixel"] = 0;
+G2L["17"]["BackgroundColor3"] = Color3.fromRGB(27, 28, 33);
+G2L["17"]["Size"] = UDim2.new(0, 35, 1, 0);
+G2L["17"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
+G2L["17"]["LayoutOrder"] = 1;
+G2L["17"]["Name"] = [[UselessFiller]];
+G2L["17"]["Position"] = UDim2.new(1, -35, 0, 0);
+
+-- StarterGui.ScreenGui.MainFrame.SearchHeader.UselessFiller
+G2L["17"] = Instance.new("Frame", G2L["f"]);
+G2L["17"]["BorderSizePixel"] = 0;
+G2L["17"]["BackgroundColor3"] = Color3.fromRGB(27, 28, 33);
+G2L["17"]["Size"] = UDim2.new(0, 35, 1, 0);
+G2L["17"]["BorderColor3"] = Color3.fromRGB(0, 0, 0);
+G2L["17"]["LayoutOrder"] = 1;
+G2L["17"]["Name"] = [[UselessFiller]];
+G2L["17"]["Position"] = UDim2.new(1, -35, 0, 0);
 
 
 
@@ -1432,10 +1696,10 @@ return G2L["2"];]]></ProtectedString>
 				<bool name="DefinesCapabilities">false</bool>
 				<string name="Name">ConstructGUI</string>
 				<int64 name="SourceAssetId">-1</int64>
-				<BinaryString name="Tags"></BinaryString>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 			</Properties>
 		</Item>
-		<Item class="ModuleScript" referent="RBX01E809E8B70D4860BBF7490E831E113B">
+		<Item class="ModuleScript" referent="RBXBF69B224FECD4D6480F54C4449AB06BD">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
 				<ProtectedString name="Source"><![CDATA[local typeConversion = {
@@ -1463,8 +1727,130 @@ return typeConversion
 				<bool name="DefinesCapabilities">false</bool>
 				<string name="Name">TypeConversion</string>
 				<int64 name="SourceAssetId">-1</int64>
-				<BinaryString name="Tags"></BinaryString>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+		</Item>
+		<Item class="ModuleScript" referent="RBX5DF007CB779944F9AF336874FF8D7D37">
+			<Properties>
+				<Content name="LinkedSource"><null></null></Content>
+				<ProtectedString name="Source"><![CDATA[local pluginSettings = {}
+
+pluginSettings.CurrentSettings = {}
+
+pluginSettings.OptionsList = {
+	{
+		Name = "InsertNilAttributes",
+		Title = "Insert/Show attributes with nil default values",
+		Default = "Insert",
+		Options = {
+			{Name = "Insert", Title = "Insert"},
+			{Name = "NoInsert", Title = "Don't Insert"},
+			{Name = "NoShow", Title = "Don't Show"},
+		},
+	},
+	{
+		Name = "UseSerializerDefaults",
+		Title = "Use default attribute values included in the Serializer",
+		Default = "UseSerializer",
+		Options = {
+			{Name = "UseSerializer", Title = "Use Serializer Defaults"},
+			{Name = "UseRoblox", Title = "Use Roblox Defaults"},
+		},
+	},
+	{
+		Name = "HandleUnserialized",
+		Title = "Insert/Show unserialized components and attributes",
+		Default = "NoInsert",
+		Options = {
+			{Name = "Bypass", Title = "Bypass Validation"},
+			{Name = "Insert", Title = "Insert"},
+			{Name = "NoInsert", Title = "Don't Insert"},
+			{Name = "NoShow", Title = "Don't Show"},
+		},
+	},
+	{
+		Name = "GoogMode",
+		Title = "Goog-ify components (don't use this)",
+		Default = "No",
+		Options = {
+			{Name = "Yes", Title = "Yes"},
+			{Name = "No", Title = "No"},
+		},
+	},
+}
+
+function pluginSettings.GetOptionsNames()
+	local returnTable = {}
+	for i, v in ipairs(pluginSettings.OptionsList) do
+		table.insert(returnTable, v.Name)
+	end
+	return returnTable
+end
+
+function pluginSettings.GetOptionInfo(optionName: string)
+	if typeof(optionName) ~= "string" then
+		warn("Non-string option name: " .. optionName)
+	end
+	
+	for i, v in ipairs(pluginSettings.OptionsList) do
+		if v.Name == optionName then
+			return v
+		end
+	end
+	
+	warn("Tried to get info for option that does not exist: " .. optionName)
+	return nil
+end
+
+return pluginSettings
+]]></ProtectedString>
+				<string name="ScriptGuid">{954B13BA-3E79-4998-A1FF-381994B423A7}</string>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">PluginSettings</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
+			</Properties>
+		</Item>
+		<Item class="ModuleScript" referent="RBX3720E44D9C0A4CED9586A59DCDCE7841">
+			<Properties>
+				<Content name="LinkedSource"><null></null></Content>
+				<ProtectedString name="Source"><![CDATA[local googStrings = {}
+
+function googStrings.GetString(stringType: "Component"|"Attribute"|"Type"|"ComponentDesc"|"AttributeDesc"): string
+	return googStrings.stringTable[stringType][math.random(1, #googStrings.stringTable[stringType])]
+end
+
+googStrings.stringTable = {
+	Component = {"Goog"},
+	Attribute = {"Goog", "GoogGoog", "GoogAttribute", "GoogValue"},
+	Type = {"Goog", "Goog", "GoogGoog"},
+	ComponentDesc = {
+		"Googs the Goog when the Goog is Goog",
+		"Sets the Goog to the Goog if Goog is Goog",
+		"Creates a Goog Goog that Googs the Goog",
+	},
+	AttributeDesc = {
+		"The Goog to Goog when Goog is Goog",
+		"The Goog of the Goog to Goog",
+		"When Goog, Goog will Goog in the Goog; used for Goog",
+	},
+}
+
+return googStrings
+]]></ProtectedString>
+				<string name="ScriptGuid">{FC4D522B-3205-4F92-A8EA-BFA323465E01}</string>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">GoogStrings</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<SharedString name="Tags">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
 			</Properties>
 		</Item>
 	</Item>
+	<SharedStrings>
+		<SharedString md5="yuZpQdnvvUBOTYh1jqZ2cA=="></SharedString>
+	</SharedStrings>
 </roblox>

@@ -43,7 +43,7 @@ local components = {
 		HelpText = "Fades out the player's view to a dark screen when a specified condition is true",
 		Attributes = {
 			Active = {"Expression -> boolean", "When true, the player's screen is covered in darkness"},
-			Speed = {"number", "The amount of time that it takes, in seconds, for the dark screen to fade in and out"},
+			Speed = {"number", "The multiplier for the amount of time it takes for the screen to fade"},
 		},
 	},
 	BodyAltTrigger = {
@@ -112,7 +112,7 @@ local components = {
 			CustomPantsId = {"string", "The template ID of custom pants to give to the spawned units"},
 			CustomShirtId = {"string", "The template ID of a custom shirt to give to the spawned units"},
 			EnemyType = {"string", "Defines the type (outfit and base stats) of enemies spawned, such as Swat, Palisade, Criminal, and HalcyonOperator"},
-			EnemyWeapons = {"string", "The pool of weapons enemies can spawn with, with each weapon name being separated by a bar (|); use duplicate entries to increase the chances of specific weapons being spawned"},
+			EnemyWeapons = {"string", "The pool of weapons enemies can spawn with, with each weapon name being separated by a pipe (|); use duplicate entries to increase the chances of specific weapons being spawned"},
 			["EnemyWeaponsWave(1-9)"] = {"string", "A new attribute can be set for numbers 1 through 9; has the same formatting as EnemyWeapons, and overrides EnemyWeapons for specific waves", true, true},
 			FallbackCondition = {"Expression -> boolean", "When true, units spawned by this CombatSpawner will retreat to a CombatRetreatPoint prop and despawn"},
 			FlowMap = {"string", "The name of the CombatFlowMap to tie enemies to"},
@@ -191,7 +191,7 @@ local components = {
 			CustomPantsId = {"string", "The template ID of custom pants to give to the spawned units"},
 			CustomShirtId = {"string", "The template ID of a custom shirt to give to the spawned units"},
 			EnemyType = {"string", "Defines the type (outfit) of enemies spawned, such as Swat, Palisade, Criminal, and HalcyonOperator"},
-			EnemyWeapons = {"string", "The pool of weapons enemies can spawn with, with each weapon name being separated by a bar (|); use duplicate entries to increase the chances of specific weapons being spawned"},
+			EnemyWeapons = {"string", "The pool of weapons enemies can spawn with, with each weapon name being separated by a pipe (|); use duplicate entries to increase the chances of specific weapons being spawned"},
 			["EnemyWeaponsWave(1-9)"] = {"string", "A new attribute can be set for numbers 1 through 9; has the same formatting as EnemyWeapons, and overrides EnemyWeapons for specific waves", true, true},
 			FillFrequency = {"number", "The amount of time between unit spawns, in seconds"},
 			FocusPoint = {"Vector3", "Unknown (if you can figure it out, contact the plugin maker to let them know!)", true},
@@ -258,7 +258,7 @@ local components = {
 		HelpText = "Displays a paper file with custom text on the player's screen when a specific condition is met",
 		Attributes = {
 			Font = {"string", "The name of the font to use for the text on the file"},
-			Lines = {"string", "A list of CustomStrings to be displayed on the file in a randomized order, separated by bars (|)"},
+			Lines = {"string", "A list of CustomStrings to be displayed on the file in a randomized order, separated by pipes (|)"},
 			NoExtraPaper = {"boolean", "If true, extra papers will not be displayed behind the paper file on-screen"},
 			NoFolder = {"boolean", "If true, a folder will not be displayed behind the paper file on-screen"},
 			ShowTape = {"boolean", "If true, a strip of tape will be shown with the paper file on-screen"},
@@ -537,9 +537,12 @@ local components = {
 	StateScript = {
 		HelpText = "Executes custom code within the limits of the StateScript language",
 		Attributes = {
-			Run = {"Expression -> boolean", "When true, this StateScript will begin running, and will stop when this value is false; generally shouldn't be used alongside the TriggerEvent attribute"},
-			ScriptSource = {"StateScript", "The StateScript code to run; for more information on StateScripts, read the documentation or wiki page"},
-			TriggerEvent = {"Expression -> boolean", "When updated with a non-zero value, a new instance of the StateScript will be executed; generally shouldn't be used alongside the Run attribute"},
+			DebugLineVariable = {"string", "The variable to set to the line number of the most recently executed line of code for this StateScript; used for debugging", true, true},
+			DebugLogId = {"string", "If set to a non-empty value, every line of this Statescript run will be sent in the F9 console in-game post-pre-processing, with square brackets around arguments removed, and colons put between arguments; used for debugging", true, true},
+			DebugVariable = {"string", "The variable to set to the content of the most recently executed line of code for this StateScript; used for debugging", true, true},
+			Run = {"Expression -> boolean", "When true, this StateScript will begin running, and will stop when this value is false; generally shouldn't be used alongside the TriggerEvent attribute", false, true},
+			ScriptSource = {"StateScript", "The StateScript code to run; for more information on StateScripts, read the documentation, wiki page, or consult the official sample model", false, true},
+			TriggerEvent = {"Expression -> boolean", "When updated with a non-zero value, a new instance of the StateScript will be executed; generally shouldn't be used alongside the Run attribute", false, true},
 		},
 	},
 	StateUpdate = {
@@ -571,8 +574,8 @@ local components = {
 			Prefix0 = {"string", "The first variable prefix to use"},
 			Prefix1 = {"string", "The second variable prefix to use"},
 			Seed = {"Expression -> number", "The seed number to use for randomization"},
-			Set0 = {"string", "The first set of values to use, with each value separated by a bar (|)"},
-			Set1 = {"string", "The second set of values to use, with each value separated by a bar (|)"},
+			Set0 = {"string", "The first set of values to use, with each value separated by a pipe (|)"},
+			Set1 = {"string", "The second set of values to use, with each value separated by a pipe (|)"},
 		},
 	},
 }

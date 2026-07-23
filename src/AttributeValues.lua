@@ -10,7 +10,7 @@ local attributeValues = {
 	["Expression -> CustomString"] = "",
 	CustomBehavior = "",
 	StateScript = "",
-	Color = Color3.new(0, 0, 0),
+	Color = Color3.new(1, 1, 1),
 	Vector3 = Vector3.new(0, 0, 0),
 	CFrame = CFrame.new(),
 }
