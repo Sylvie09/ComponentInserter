@@ -1,5 +1,5 @@
 # ComponentInserter
-Put the .rbxmx file in your plugins folder
+Download the .rbxmx file and put it in your plugins folder to use the plugin
 
 ## What it is & how to use it
 
@@ -29,11 +29,15 @@ You can press the "?" button next to a StateComponent's name in the list to view
 
 Overall, these features help to create more accessibility and spread information in the realm of creating custom missions
 
-Also it has light mode support
+It also has light mode support
 
-And I was able to put an ampersand in this README file
+## Tips
 
-Huzzah
+* Have a sub-folder or another StateComponent selected in the explorer to directly insert into that folder
+* Check out the settings menu for plugin customization:
+  * If you want things to be simple with only required attributes, set the "Insert/Show attributes with nil default values" setting to "Don't Insert" or "Don't Show"
+  * If you're using an outdated version of the Serializer plugin, set the "Insert/Show unserialized component and attributes" setting to "Don't Show" to not show unzerialized attributes or "Bypass Validation" to insert them anyway
+  * If you want to suffer, set the "Goog-ify components" setting to "Yes"
 
 ## Terms of Use
-- Any modified version of the plugin created must be publicly published with the source code publicly available
+* Any modified version of the plugin created must be publicly published with the source code publicly available

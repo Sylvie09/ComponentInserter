@@ -1,11 +1,15 @@
-local componentInserterVersion = "1.5.0"
+local componentInserterVersion = "1.6.0"
 
--- This code is an absolute mess I should make some kind of framework for plugins if I decide to make another plugin
+-- This code is an absolute mess, I should make some kind of framework for plugins if I decide to make another plugin
 
+-- Startup message
 print("Component Inserter: Starting plugin...")
 
+-- Services
 local selection = game:GetService("Selection")
 local httpService = game:GetService("HttpService")
+
+-- Root & modules
 local root = script.Parent
 require(root.ConstructGUI)
 local components = require(root.Components)
@@ -15,9 +19,11 @@ local apiConsumer = require(root.APIConsumer)
 local pluginSettings = require(root.PluginSettings)
 local googStrings = require(root.GoogStrings)
 
+-- Settings
 local showingSettings = false
 local pendingSettings = {}
 
+-- GUI
 local mainFrame: Frame = root.MainFrame
 local componentTemplate: Frame = mainFrame.ComponentTemplate
 local componentList: ScrollingFrame = mainFrame.ComponentList
@@ -28,6 +34,7 @@ local helpHeader: Frame = mainFrame.HelpHeader
 local helpScroll: ScrollingFrame = mainFrame.HelpScroll
 local settingTemplate: Frame = mainFrame.SettingTemplate
 
+-- These attributes will never be shown or inserted
 local attributeBlacklist = {
 	EnemyWeaponsWave1 = true,
 	EnemyWeaponsWave2 = true,
@@ -38,10 +45,22 @@ local attributeBlacklist = {
 	EnemyWeaponsWave7 = true,
 	EnemyWeaponsWave8 = true,
 	EnemyWeaponsWave9 = true,
+	Invalid0 = true,
+	Invalid1 = true,
+	Invalid2 = true,
+	Invalid3 = true,
+	Invalid4 = true,
+	Invalid5 = true,
+	Invalid6 = true,
+	Invalid7 = true,
+	Invalid8 = true,
+	Invalid9 = true,
 }
 
+-- Text to display if the installed version doesn't match the GitHub version
 local NEW_VERSION_TEXT = "Installed Component Inserter plugin does not match version on GitHub; be sure to download the most recent version of the plugin for new fixes and additions"
 
+-- Create toolbar button
 local toolbar = plugin:CreateToolbar("Component Inserter")
 local pluginButton = toolbar:CreateButton(
 	"Insert StateComponents", -- Text below button
@@ -49,6 +68,7 @@ local pluginButton = toolbar:CreateButton(
 	if settings().Studio.Theme.Name == "Dark" then "rbxassetid://99754481925613" else "rbxassetid://135383589626064" -- Button icon
 )
 
+-- Create widget
 local info = DockWidgetPluginGuiInfo.new(
 	Enum.InitialDockState.Float, -- Where the widget initially appears at
 	false, -- If the widget will be initially enabled
@@ -68,6 +88,7 @@ widget.Title = "Component Inserter"
 
 script.Parent.MainFrame.Parent = widget
 
+-- Get Serializer API & attributes map
 local api = apiConsumer.WaitForAPI(10)
 local apiSuccess = api ~= nil
 
@@ -79,6 +100,7 @@ end
 
 local attributesMap = if apiSuccess then api.GetAttributesMap() else {}
 
+-- Check if installed plugin version matches version on GitHub
 local function CheckForUpdate()
 	local success, returnData = pcall(function()
 		return httpService:GetAsync("https://raw.githubusercontent.com/Sylvie09/ComponentInserter/refs/heads/main/src/Main.lua")
@@ -99,10 +121,12 @@ end
 
 coroutine.resume(coroutine.create(CheckForUpdate))
 
+-- Inverts the given Color3
 local function InvertColor(color: Color3)
 	return Color3.new(1 - color.R, 1 - color.G, 1 - color.B)
 end
 
+-- Inverts the plugin widget's colors
 local function InvertTheme()
 	for i, v in ipairs(mainFrame:GetDescendants()) do
 		if v:IsA("GuiObject") then
@@ -116,6 +140,7 @@ local function InvertTheme()
 	end
 end
 
+-- Toggles showing the components list or help menu
 local function ShowMain(show: boolean)
 	searchHeader.Visible = show
 	componentList.Visible = show
@@ -123,6 +148,7 @@ local function ShowMain(show: boolean)
 	helpScroll.Visible = not show
 end
 
+-- Gets attributes for the given StateComponent name
 local function GetComponentAttributes(stateComponent: string)
 	local returnTable = {}
 
@@ -174,6 +200,32 @@ local function GetComponentAttributes(stateComponent: string)
 	return returnTable
 end
 
+-- Determines where a component should be inserted given the currently selected instance
+local function GetInsertParent(selectedInstance: Instance): Instance
+	if not selectedInstance then return workspace.DebugMission.StateComponents end
+	
+	local insertFolder = selectedInstance:IsA("Folder") and selectedInstance or selectedInstance.Parent
+	local currentInstance = insertFolder
+	
+	local isComponentFolder = false
+	local isInMission = false
+	
+	while currentInstance:IsA("Folder") do
+		if currentInstance.Name:find("StateComponents") then
+			isComponentFolder = true
+		end
+		
+		if currentInstance == workspace.DebugMission then
+			isInMission = true
+		end
+		
+		currentInstance = currentInstance.Parent
+	end
+	
+	return isComponentFolder and isInMission and insertFolder or workspace.DebugMission.StateComponents
+end
+
+-- Inserts the StateComponent with the given name
 local function InsertStateComponent(stateComponent: string)
 	if not components[stateComponent] and not attributesMap[stateComponent] then
 		warn("Component Inserter: Attempted to insert StateComponent with invalid name; if you see this warning, please contact the plugin creator")
@@ -204,16 +256,10 @@ local function InsertStateComponent(stateComponent: string)
 	newComponent:SetAttribute("Type", stateComponent)
 	
 	local newParent = stateComponentsFolder
-	local stateComponentsPreProcess = debugMission:FindFirstChild("StateComponentsPreProcess")
-	local stateComponentTemplates = debugMission:FindFirstChild("StateComponentTemplates")
 	local currentSelection = selection:Get()
 	
-	if #currentSelection == 1 and (currentSelection[1]:IsDescendantOf(stateComponentsFolder) or currentSelection[1] == stateComponentsPreProcess or currentSelection[1] == stateComponentTemplates or (stateComponentsPreProcess and currentSelection[1]:IsDescendantOf(stateComponentsPreProcess)) or (stateComponentTemplates and currentSelection[1]:IsDescendantOf(stateComponentTemplates))) then
-		if currentSelection[1]:IsA("Folder") then
-			newParent = currentSelection[1]
-		else
-			newParent = currentSelection[1].Parent
-		end
+	if #currentSelection == 1 then
+		newParent = GetInsertParent(currentSelection[1])
 	end
 	
 	newComponent.Parent = newParent
@@ -238,6 +284,7 @@ local function InsertStateComponent(stateComponent: string)
 	selection:Set({newComponent})
 end
 
+-- Loads help text for the StateComponent with the given name
 function LoadComponentHelp(stateComponent: string)
 	if not components[stateComponent] then
 		warn("Component Inserter: Attempted to load help for an unknown StateComponent")
@@ -323,6 +370,7 @@ function LoadComponentHelp(stateComponent: string)
 	ShowMain(false)
 end
 
+-- Populates the list of components
 local function PopulateComponentList()
 	local newComponentFrame
 	componentList.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -362,12 +410,14 @@ local function PopulateComponentList()
 	searchBar.Text = ""
 end
 
+-- Clears the list of components
 local function ClearComponentList()
 	for i, v in ipairs(componentList:GetChildren()) do
 		if v:IsA("Frame") then v:Destroy() end
 	end
 end
 
+-- Updates current settings to match stored settings
 function UpdateCurrentSettings()
 	local internalSetting
 	for i, v in ipairs(pluginSettings.GetOptionsNames()) do
@@ -375,12 +425,14 @@ function UpdateCurrentSettings()
 	end
 end
 
+-- Updates stored settings to match current settings
 function UpdateInternalSettings()
 	for i, v in pairs(pluginSettings.CurrentSettings) do
 		plugin:SetSetting(i, v)
 	end
 end
 
+-- Shows the settings menu
 local function ShowSettings(show: boolean)
 	helpHeader.Visible = show
 	searchHeader.Visible = not show
@@ -450,10 +502,12 @@ local function ShowSettings(show: boolean)
 	end
 end
 
+-- Initialize settings & GUI
 UpdateCurrentSettings()
 
 PopulateComponentList()
 
+-- Search function
 searchBar.Changed:Connect(function(property: string)
 	if property ~= "Text" then return end
 
@@ -472,6 +526,7 @@ searchBar.Changed:Connect(function(property: string)
 	end
 end)
 
+-- Exit help/settings menu when the back button is pressed
 helpHeader.BackButton.Activated:Connect(function()
 	if not showingSettings then
 		ShowMain(true)
@@ -480,18 +535,22 @@ helpHeader.BackButton.Activated:Connect(function()
 	end
 end)
 
+-- Show settings when settings button is pressed
 settingsButton.Activated:Connect(function()
 	ShowSettings(true)
 end)
 
+-- Toggle widget visibility when toolbar button is pressed
 pluginButton.Click:Connect(function()
 	widget.Enabled = not widget.Enabled
 end)
 
+-- Invert widget theme on plugin startup if Studio is Light theme
 if settings().Studio.Theme.Name == "Light" then
 	InvertTheme()
 end
 
+-- Invert widget theme if Studio's theme changes
 settings().Studio.ThemeChanged:Connect(function()
 	InvertTheme()
 end)
